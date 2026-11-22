@@ -5,11 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"slices"
 	"strings"
 
 	litho "github.com/gotenberg/litho/pkg/pdf"
+
+	"github.com/gotenberg/gotenberg/v9/pkg/modules/api"
 )
 
 func (s *deleteStage) edit(_ context.Context, w *litho.Writer, env *runEnv) error {
@@ -268,10 +269,13 @@ func (s *attachStage) edit(_ context.Context, w *litho.Writer, env *runEnv) erro
 		return err
 	}
 
+	// The name travels inside the PDF, and a viewer or extractor writes the
+	// file under it, so it gets the rule of every name that leaves Gotenberg.
 	name := s.Name
 	if name == "" {
-		name = filepath.Base(s.File)
+		name = s.File
 	}
+	name = api.PortableFilename(name)
 
 	mimeType := s.MimeType
 	if mimeType == "" {

@@ -1185,6 +1185,20 @@ Feature: /forms/libreoffice/convert
     Then the file request header "X-Foo" should be "bar"
     Then the response header "Content-Type" should be "application/pdf"
 
+  # A name that leaves Gotenberg is one file name on every system: a drive
+  # prefix or a Windows device name never reaches the extractor as such.
+  @download-from
+  Scenario: POST /forms/libreoffice/convert (Download From With Hostile Filenames)
+    Given I have a default Gotenberg container
+    Given I have a static server
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | downloadFrom | [{"url":"{helper}/static/testdata/page_1.docx","filename":"C:evil.docx"},{"url":"{helper}/static/testdata/page_2.docx","filename":"CON.docx"}] | field |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/zip"
+    Then there should be the following file(s) in the response:
+      | C_evil.docx.pdf |
+      | _CON.docx.pdf   |
+
   # The outbound filter refuses a download URL the deny-list names, even when
   # the allow-list matches every URL. A refusal stays generic for the client.
   @download-from

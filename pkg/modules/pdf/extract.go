@@ -131,16 +131,10 @@ func selectAttachments(files []models.EmbeddedFile, name string) ([]models.Embed
 
 // attachmentFilename returns the name an attachment comes back under: the
 // document's base name, then the attachment's. The attachment's name comes
-// from the PDF, so it loses any directory and control character, which would
-// otherwise reach the ZIP as a path.
+// from the PDF as it holds it, so it goes through [api.PortableFilename]
+// first: a directory in it would otherwise drop the base name.
 func attachmentFilename(base, name string) string {
-	name = api.SanitizeFilename(name)
-	if name == "" || name == "." || name == ".." {
-		// litho names a file specification without a name the same way.
-		name = "embedded"
-	}
-
-	return base + "_" + name
+	return base + "_" + api.PortableFilename(name)
 }
 
 // uniqueName returns name, or a numbered variant of it, invoice_factur-x_2.xml

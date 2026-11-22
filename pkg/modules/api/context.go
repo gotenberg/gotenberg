@@ -21,6 +21,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
@@ -929,13 +930,7 @@ func (ctx *Context) BuildOutputFile() (string, error) {
 		return ctx.outputPaths[0], nil
 	}
 
-	filesInfo, err := archives.FilesFromDisk(ctx.Context, nil, func() map[string]string {
-		f := make(map[string]string)
-		for _, outputPath := range ctx.outputPaths {
-			f[outputPath] = ctx.OriginalFilename(outputPath)
-		}
-		return f
-	}())
+	filesInfo, err := archives.FilesFromDisk(ctx.Context, nil, ctx.archiveEntryNames())
 	if err != nil {
 		return "", fmt.Errorf("create files info: %w", err)
 	}
@@ -975,11 +970,13 @@ func (ctx *Context) OutputFilename(outputPath string) string {
 }
 
 // ContentDisposition returns the Content-Disposition header value of an
-// attachment named filename. A name with non-ASCII characters also travels in
-// the "filename*" parameter, percent-encoded in UTF-8, beside an ASCII
-// "filename" fallback for the clients that read only that one. See RFC 6266,
-// section 4.3, and RFC 8187, section 3.2.
+// attachment named filename, through [PortableFilename]. A name with non-ASCII
+// characters also travels in the "filename*" parameter, percent-encoded in
+// UTF-8, beside an ASCII "filename" fallback for the clients that read only
+// that one. See RFC 6266, section 4.3, and RFC 8187, section 3.2.
 func ContentDisposition(filename string) string {
+	filename = PortableFilename(filename)
+
 	var fallback strings.Builder
 	ascii := true
 	for _, r := range filename {
@@ -1082,9 +1079,9 @@ func (ctx *Context) trackFileOrder(path, base string) {
 
 // SanitizeFilename strips path separators (including backslashes, which
 // [filepath.Base] ignores on Linux) and control characters from a
-// caller-supplied filename, then NFC-normalizes the result. This prevents a
-// Windows-side Zip Slip when an output zip is extracted by a permissive
-// extractor that interprets '\' as a path separator.
+// caller-supplied filename, then NFC-normalizes the result. Gotenberg keys
+// uploads by that name, so stages and HTML assets can still refer to them. A
+// name that leaves Gotenberg goes through [PortableFilename] as well.
 func SanitizeFilename(name string) string {
 	if i := strings.LastIndexAny(name, `/\`); i >= 0 {
 		name = name[i+1:]
@@ -1096,4 +1093,96 @@ func SanitizeFilename(name string) string {
 		return r
 	}, name)
 	return norm.NFC.String(name)
+}
+
+// portableASCII lists the ASCII punctuation every common file system and
+// extractor takes as part of a file name.
+const portableASCII = " !#$%&'()+,-.;=@[]^_`{}~"
+
+// PortableFilename returns name as a file name that every common operating
+// system and extractor takes as one file in the folder it extracts to. It
+// keeps the last path segment of name, then builds the result from an allow
+// list rather than filtering a deny list: letters, marks and digits in any
+// script, and the ASCII punctuation of [portableASCII]. Every other character
+// becomes '_': separators and ':', which Windows reads as a drive or an
+// alternate data stream, the characters Windows refuses, control and format
+// characters, such as a right-to-left override, and the punctuation and
+// symbols Windows best-fit conversions map to a separator, such as '／' or '¥'.
+// It then trims leading spaces and trailing dots and spaces, which Windows
+// drops, and prefixes '_' to a Windows device name, such as "CON.pdf". An
+// empty result becomes "file".
+func PortableFilename(name string) string {
+	var b strings.Builder
+	for _, r := range SanitizeFilename(name) {
+		switch {
+		case unicode.IsLetter(r), unicode.IsMark(r), unicode.IsDigit(r):
+			b.WriteRune(r)
+		case r < utf8.RuneSelf && strings.ContainsRune(portableASCII, r):
+			b.WriteRune(r)
+		default:
+			b.WriteByte('_')
+		}
+	}
+
+	portable := strings.TrimRight(strings.TrimLeft(b.String(), " "), ". ")
+	if portable == "" {
+		return "file"
+	}
+
+	if isWindowsDeviceName(portable) {
+		return "_" + portable
+	}
+
+	return portable
+}
+
+// isWindowsDeviceName reports whether Windows opens a device instead of a file
+// named name: the part before the first dot, trailing spaces aside, is CON,
+// PRN, AUX, NUL, COM0 to COM9, LPT0 to LPT9, CONIN$ or CONOUT$, in any case.
+// The superscript digits Windows also accepts after COM and LPT never reach
+// here, as [PortableFilename] replaces them.
+func isWindowsDeviceName(name string) bool {
+	stem, _, _ := strings.Cut(name, ".")
+	stem = strings.ToUpper(strings.TrimRight(stem, " "))
+
+	switch stem {
+	case "CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$":
+		return true
+	}
+
+	return len(stem) == 4 && (strings.HasPrefix(stem, "COM") || strings.HasPrefix(stem, "LPT")) && stem[3] >= '0' && stem[3] <= '9'
+}
+
+// archiveEntryNames returns the name each output path takes in the archive:
+// its original filename through [PortableFilename], numbered when an earlier
+// entry already took the same name, whatever its case, as Windows and macOS
+// compare names: "doc.pdf", then "Doc (2).pdf".
+func (ctx *Context) archiveEntryNames() map[string]string {
+	names := make(map[string]string, len(ctx.outputPaths))
+	taken := make(map[string]bool, len(ctx.outputPaths))
+	nextSuffix := make(map[string]int)
+
+	for _, outputPath := range ctx.outputPaths {
+		name := PortableFilename(ctx.OriginalFilename(outputPath))
+		key := strings.ToLower(name)
+
+		if taken[key] {
+			ext := filepath.Ext(name)
+			stem := strings.TrimSuffix(name, ext)
+
+			for i := max(nextSuffix[key], 2); ; i++ {
+				candidate := fmt.Sprintf("%s (%d)%s", stem, i, ext)
+				if !taken[strings.ToLower(candidate)] {
+					nextSuffix[key] = i + 1
+					name = candidate
+					break
+				}
+			}
+		}
+
+		taken[strings.ToLower(name)] = true
+		names[outputPath] = name
+	}
+
+	return names
 }

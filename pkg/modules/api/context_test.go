@@ -1,6 +1,7 @@
 package api
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -23,6 +24,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/dlclark/regexp2/v2"
 	"github.com/labstack/echo/v5"
@@ -1428,14 +1431,18 @@ func TestContentDisposition(t *testing.T) {
 		name     string
 		filename string
 		want     string
+		// parsed is the name a client reads back, the filename through
+		// PortableFilename.
+		parsed string
 	}{
-		{name: "ASCII", filename: "foo.pdf", want: `attachment; filename="foo.pdf"`},
-		{name: "space", filename: "my report.pdf", want: `attachment; filename="my report.pdf"`},
-		{name: "quote", filename: `quo"te.pdf`, want: `attachment; filename="quo\"te.pdf"`},
-		{name: "backslash", filename: `a\b.pdf`, want: `attachment; filename="a\\b.pdf"`},
-		{name: "extension kept", filename: "report.pdf.pdf", want: `attachment; filename="report.pdf.pdf"`},
-		{name: "non-ASCII", filename: "é日本.pdf", want: `attachment; filename="___.pdf"; filename*=UTF-8''%C3%A9%E6%97%A5%E6%9C%AC.pdf`},
-		{name: "non-ASCII with a quote and a semicolon", filename: `é";a=b.pdf`, want: `attachment; filename="_\";a=b.pdf"; filename*=UTF-8''%C3%A9%22%3Ba%3Db.pdf`},
+		{name: "ASCII", filename: "foo.pdf", want: `attachment; filename="foo.pdf"`, parsed: "foo.pdf"},
+		{name: "space", filename: "my report.pdf", want: `attachment; filename="my report.pdf"`, parsed: "my report.pdf"},
+		{name: "quote", filename: `quo"te.pdf`, want: `attachment; filename="quo_te.pdf"`, parsed: "quo_te.pdf"},
+		{name: "backslash", filename: `a\b.pdf`, want: `attachment; filename="b.pdf"`, parsed: "b.pdf"},
+		{name: "drive", filename: `C:evil.pdf`, want: `attachment; filename="C_evil.pdf"`, parsed: "C_evil.pdf"},
+		{name: "extension kept", filename: "report.pdf.pdf", want: `attachment; filename="report.pdf.pdf"`, parsed: "report.pdf.pdf"},
+		{name: "non-ASCII", filename: "é日本.pdf", want: `attachment; filename="___.pdf"; filename*=UTF-8''%C3%A9%E6%97%A5%E6%9C%AC.pdf`, parsed: "é日本.pdf"},
+		{name: "non-ASCII with a quote and a semicolon", filename: `é";a=b.pdf`, want: `attachment; filename="__;a=b.pdf"; filename*=UTF-8''%C3%A9_%3Ba%3Db.pdf`, parsed: "é_;a=b.pdf"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := ContentDisposition(tc.filename)
@@ -1448,11 +1455,100 @@ func TestContentDisposition(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parse media type: %v", err)
 			}
-			if params["filename"] != tc.filename {
-				t.Errorf("parsed filename = %q, want %q", params["filename"], tc.filename)
+			if params["filename"] != tc.parsed {
+				t.Errorf("parsed filename = %q, want %q", params["filename"], tc.parsed)
 			}
 		})
 	}
+}
+
+func TestPortableFilename(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		want string
+	}{
+		{name: "report.pdf", want: "report.pdf"},
+		{name: "résumé (final).pdf", want: "résumé (final).pdf"},
+		{name: "cafe\u0301.pdf", want: "café.pdf"},
+		{name: "日本語.pdf", want: "日本語.pdf"},
+		{name: "Привет.pdf", want: "Привет.pdf"},
+		{name: "हिन्दी.pdf", want: "हिन्दी.pdf"},
+		{name: "عربي.pdf", want: "عربي.pdf"},
+		{name: ".hidden", want: ".hidden"},
+		{name: "../../evil.png", want: "evil.png"},
+		{name: `..\..\evil.png`, want: "evil.png"},
+		{name: `\\server\share\x.pdf`, want: "x.pdf"},
+		{name: `\\?\C:`, want: "C_"},
+		{name: "C:evil.pdf", want: "C_evil.pdf"},
+		{name: "x.pdf:stream", want: "x.pdf_stream"},
+		{name: "x::$DATA", want: "x__$DATA"},
+		{name: `a*b?c"d<e>f|g.pdf`, want: "a_b_c_d_e_f_g.pdf"},
+		{name: "a\x00b\x1fc.pdf", want: "abc.pdf"},
+		{name: "invoice\u202efdp.exe", want: "invoice_fdp.exe"},
+		{name: "zero\u200bwidth.pdf", want: "zero_width.pdf"},
+		{name: "a／b＼c：d.pdf", want: "a_b_c_d.pdf"},
+		{name: "a¥b₩c∕d.pdf", want: "a_b_c_d.pdf"},
+		{name: "invalid\xff.pdf", want: "invalid_.pdf"},
+		{name: "€ “quoted” 🙂.pdf", want: "_ _quoted_ _.pdf"},
+		{name: "evil.pdf.", want: "evil.pdf"},
+		{name: "evil.pdf ", want: "evil.pdf"},
+		{name: " evil.pdf", want: "evil.pdf"},
+		{name: "CON", want: "_CON"},
+		{name: "con.pdf", want: "_con.pdf"},
+		{name: "CON .pdf", want: "_CON .pdf"},
+		{name: "nul.tar.gz", want: "_nul.tar.gz"},
+		{name: "COM1", want: "_COM1"},
+		{name: "LPT9.txt", want: "_LPT9.txt"},
+		{name: "CONIN$", want: "_CONIN$"},
+		{name: "COM¹.pdf", want: "COM_.pdf"},
+		{name: "CONSOLE.pdf", want: "CONSOLE.pdf"},
+		{name: "COM10.pdf", want: "COM10.pdf"},
+		{name: "", want: "file"},
+		{name: ".", want: "file"},
+		{name: "..", want: "file"},
+		{name: "...", want: "file"},
+		{name: "dir/", want: "file"},
+	} {
+		if got := PortableFilename(tc.name); got != tc.want {
+			t.Errorf("PortableFilename(%q) = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+// FuzzPortableFilename checks what every name PortableFilename returns holds,
+// whatever it gets.
+func FuzzPortableFilename(f *testing.F) {
+	for _, seed := range []string{"report.pdf", "C:evil.pdf", "../..", "CON.pdf", "a\u202eb", "／＼：", ""} {
+		f.Add(seed)
+	}
+
+	f.Fuzz(func(t *testing.T, name string) {
+		got := PortableFilename(name)
+
+		if got == "" {
+			t.Fatalf("PortableFilename(%q) is empty", name)
+		}
+		if !utf8.ValidString(got) {
+			t.Fatalf("PortableFilename(%q) = %q, not valid UTF-8", name, got)
+		}
+		if strings.ContainsAny(got, `<>:"/\|?*`) {
+			t.Fatalf("PortableFilename(%q) = %q, holds a character Windows refuses", name, got)
+		}
+		for _, r := range got {
+			if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+				t.Fatalf("PortableFilename(%q) = %q, holds %U", name, got, r)
+			}
+		}
+		if strings.HasSuffix(got, ".") || strings.HasSuffix(got, " ") || strings.HasPrefix(got, " ") {
+			t.Fatalf("PortableFilename(%q) = %q, starts with a space or ends with a dot or a space", name, got)
+		}
+		if isWindowsDeviceName(got) {
+			t.Fatalf("PortableFilename(%q) = %q, a Windows device name", name, got)
+		}
+		if again := PortableFilename(got); again != got {
+			t.Fatalf("PortableFilename(%q) = %q, but PortableFilename(%q) = %q", name, got, got, again)
+		}
+	})
 }
 
 // A download that fails answers 400 with a message the client can act on: it
@@ -1612,6 +1708,48 @@ func TestDownloadFilename(t *testing.T) {
 				t.Errorf("downloadFilename() = %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+// An archive names each entry through PortableFilename, and tells apart the
+// names Windows and macOS would take for one.
+func TestContext_BuildOutputFile_EntryNames(t *testing.T) {
+	dir := t.TempDir()
+	ctx := &Context{Context: context.Background(), dirPath: dir, logger: slog.New(slog.DiscardHandler)}
+
+	originals := []string{"C:evil.rtf.pdf", "Doc.pdf", "doc.pdf", "a:b.pdf", "a_b.pdf", "CON.pdf"}
+	for _, original := range originals {
+		path := ctx.GeneratePathFromFilename(original)
+		err := os.WriteFile(path, []byte(original), 0o600)
+		if err != nil {
+			t.Fatalf("write %q: %v", original, err)
+		}
+		err = ctx.AddOutputPaths(path)
+		if err != nil {
+			t.Fatalf("add output path: %v", err)
+		}
+	}
+
+	archivePath, err := ctx.BuildOutputFile()
+	if err != nil {
+		t.Fatalf("BuildOutputFile: %v", err)
+	}
+
+	r, err := zip.OpenReader(archivePath)
+	if err != nil {
+		t.Fatalf("open archive: %v", err)
+	}
+	defer r.Close()
+
+	var got []string
+	for _, f := range r.File {
+		got = append(got, f.Name)
+	}
+	slices.Sort(got)
+
+	want := []string{"C_evil.rtf.pdf", "Doc.pdf", "_CON.pdf", "a_b (2).pdf", "a_b.pdf", "doc (2).pdf"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("entries = %q, want %q", got, want)
 	}
 }
 

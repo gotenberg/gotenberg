@@ -113,6 +113,28 @@ func TestExtractAttachments(t *testing.T) {
 	}
 }
 
+// The attach stage writes the name a viewer extracts the file under, so it
+// writes it through api.PortableFilename: no directory, no drive.
+func TestAttachWritesAPortableName(t *testing.T) {
+	processor := testProcessor()
+	ctx, paths := testContext(t, "page_1.pdf", "embed_1.xml")
+	files := map[string]string{"embed_1.xml": paths["embed_1.xml"]}
+
+	attached, err := processor.Run(ctx, mustStages(t, `[{"op":"attach","file":"embed_1.xml","name":"../../C:evil.xml"}]`), []string{paths["page_1.pdf"]}, files)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	outputs, err := processor.Run(ctx, mustStages(t, `[{"op":"extract-attachments","name":"C_evil.xml"}]`), attached, files)
+	if err != nil {
+		t.Fatalf("extract the attachment by its portable name: %v", err)
+	}
+
+	if got := ctx.OriginalFilename(outputs[len(outputs)-1]); got != "page_1_C_evil.xml" {
+		t.Fatalf("extracted %q, want %q", got, "page_1_C_evil.xml")
+	}
+}
+
 func TestAttachmentFilename(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -122,9 +144,11 @@ func TestAttachmentFilename(t *testing.T) {
 		{name: "../../etc/passwd", want: "invoice_passwd"},
 		{name: `C:\temp\data.xml`, want: "invoice_data.xml"},
 		{name: "da\x00ta\x1f.xml", want: "invoice_data.xml"},
-		{name: "", want: "invoice_embedded"},
-		{name: "..", want: "invoice_embedded"},
-		{name: "dir/", want: "invoice_embedded"},
+		{name: "C:payload.exe", want: "invoice_C_payload.exe"},
+		{name: "embedded", want: "invoice_embedded"},
+		{name: "", want: "invoice_file"},
+		{name: "..", want: "invoice_file"},
+		{name: "dir/", want: "invoice_file"},
 	} {
 		if got := attachmentFilename("invoice", tc.name); got != tc.want {
 			t.Errorf("attachmentFilename(%q) = %q, want %q", tc.name, got, tc.want)
