@@ -378,14 +378,17 @@ var tunnelSchemes = []struct {
 // it. Rules that name a path cannot match here: only a layer that sees the
 // full URL, such as Chromium's request interception, can apply them.
 //
-// The allow-list and the IP-class checks then run on the https:// form. The
-// scheme does not influence the CONNECT handling beyond filtering.
+// The allow-list and the IP-class checks then run on the https:// root URL,
+// so an allow-list rule such as "^https://cdn\.example\.com/" clears the tunnel
+// to cdn.example.com:443 as it clears the ordinary request. The scheme does not
+// influence the CONNECT handling beyond filtering.
 func (p *OutboundProxy) DecideTunnel(ctx context.Context, hostport string, deadline time.Time) (OutboundDecision, error) {
 	host, port, err := net.SplitHostPort(hostport)
 	if err != nil {
 		return OutboundDecision{}, fmt.Errorf("split CONNECT target %q: %v: %w", hostport, err, ErrFiltered)
 	}
 
+	var httpsRoot string
 	for _, ts := range tunnelSchemes {
 		authority := net.JoinHostPort(host, port)
 		if port == ts.defaultPort {
@@ -395,13 +398,18 @@ func (p *OutboundProxy) DecideTunnel(ctx context.Context, hostport string, deadl
 			}
 		}
 
-		err = FilterDenyList(ts.scheme+"://"+authority+"/", p.denyList, deadline)
+		root := ts.scheme + "://" + authority + "/"
+		if ts.scheme == "https" {
+			httpsRoot = root
+		}
+
+		err = FilterDenyList(root, p.denyList, deadline)
 		if err != nil {
 			return OutboundDecision{}, err
 		}
 	}
 
-	return p.decide(ctx, "https://"+hostport, p.allowList, p.denyList, deadline)
+	return p.decide(ctx, httpsRoot, p.allowList, p.denyList, deadline)
 }
 
 // maxConcurrentTunnels is the default for [OutboundProxy.maxTunnels]. See

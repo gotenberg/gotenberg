@@ -1241,10 +1241,40 @@ func TestOutboundProxy_DecideTunnel_DenyRuleShapes(t *testing.T) {
 
 			_, err := p.DecideTunnel(context.Background(), tc.hostport, time.Now().Add(time.Minute))
 			if tc.denied != (err != nil) {
-				t.Fatalf("decideTunnel(%q) with rule %q: error = %v, want denied: %t", tc.hostport, tc.rule, err, tc.denied)
+				t.Fatalf("DecideTunnel(%q) with rule %q: error = %v, want denied: %t", tc.hostport, tc.rule, err, tc.denied)
 			}
 			if err != nil && !errors.Is(err, ErrFiltered) {
 				t.Errorf("error %v does not wrap ErrFiltered", err)
+			}
+		})
+	}
+}
+
+// The allow-list sees the https:// root URL of a tunnel, as it sees an
+// ordinary request: a rule ending in "/" clears the tunnel to its host on the
+// default port, and only there.
+func TestOutboundProxy_DecideTunnel_AllowRuleShapes(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		rule     string
+		hostport string
+		allowed  bool
+	}{
+		{"path terminated", `^https://cdn\.example\.com/`, "cdn.example.com:443", true},
+		{"host terminated", `^https://cdn\.example\.com(:|/|$)`, "cdn.example.com:443", true},
+		{"non-default port", `^https://cdn\.example\.com:8443/`, "cdn.example.com:8443", true},
+		{"rule on the default port only", `^https://cdn\.example\.com/`, "cdn.example.com:8443", false},
+		{"other host", `^https://cdn\.example\.com/`, "other.example.com:443", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := NewOutboundProxy(OutboundProxyOptions{AllowList: []*regexp2.Regexp{regexp2.MustCompile(tc.rule, regexp2.None)}})
+
+			decision, err := p.DecideTunnel(context.Background(), tc.hostport, time.Now().Add(time.Minute))
+			if tc.allowed && (err != nil || !decision.Bypass) {
+				t.Fatalf("DecideTunnel(%q) with rule %q: decision = %+v, error = %v, want an allow-list match", tc.hostport, tc.rule, decision, err)
+			}
+			if !tc.allowed && !errors.Is(err, ErrFiltered) {
+				t.Fatalf("DecideTunnel(%q) with rule %q: error = %v, want a refusal", tc.hostport, tc.rule, err)
 			}
 		})
 	}
