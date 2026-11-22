@@ -1,4 +1,4 @@
-package chromium
+package gotenberg
 
 import (
 	"bufio"
@@ -20,30 +20,28 @@ import (
 	"time"
 
 	"github.com/dlclark/regexp2/v2"
-
-	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
 
-// recordingHandler is a slog.Handler that captures every record emitted
+// proxyLogRecorder is a slog.Handler that captures every record emitted
 // through it so tests can assert on the level and message of proxy logs.
-type recordingHandler struct {
+type proxyLogRecorder struct {
 	mu      sync.Mutex
 	records []slog.Record
 }
 
-func (h *recordingHandler) Enabled(_ context.Context, _ slog.Level) bool { return true }
+func (h *proxyLogRecorder) Enabled(_ context.Context, _ slog.Level) bool { return true }
 
-func (h *recordingHandler) Handle(_ context.Context, r slog.Record) error {
+func (h *proxyLogRecorder) Handle(_ context.Context, r slog.Record) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.records = append(h.records, r.Clone())
 	return nil
 }
 
-func (h *recordingHandler) WithAttrs(_ []slog.Attr) slog.Handler { return h }
-func (h *recordingHandler) WithGroup(_ string) slog.Handler      { return h }
+func (h *proxyLogRecorder) WithAttrs(_ []slog.Attr) slog.Handler { return h }
+func (h *proxyLogRecorder) WithGroup(_ string) slog.Handler      { return h }
 
-func (h *recordingHandler) snapshot() []slog.Record {
+func (h *proxyLogRecorder) snapshot() []slog.Record {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	out := make([]slog.Record, len(h.records))
@@ -87,22 +85,22 @@ func newRawTCPServer(t *testing.T, handle func(net.Conn)) (string, func()) {
 	return l.Addr().String(), func() { _ = l.Close() }
 }
 
-// newProxyForTest returns a pinning proxy whose decide and dial functions
+// newProxyForTest returns an outbound proxy whose decide and dial functions
 // are set to test stubs. The proxy is started on a loopback ephemeral
 // port and stopped during test cleanup.
-func newProxyForTest(t *testing.T, p *pinningProxy) string {
+func newProxyForTest(t *testing.T, p *OutboundProxy) string {
 	t.Helper()
 	err := p.Start(testLogger())
 	if err != nil {
-		t.Fatalf("start pinning proxy: %v", err)
+		t.Fatalf("start outbound proxy: %v", err)
 	}
 	t.Cleanup(func() {
-		_ = p.Stop(testLogger())
+		_ = p.Stop(context.Background())
 	})
-	return p.URL()
+	return "http://" + p.Addr()
 }
 
-func TestPinningProxy_Forward_Pinned_Success(t *testing.T) {
+func TestOutboundProxy_Forward_Pinned_Success(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Host != "example.com" {
 			t.Errorf("upstream expected Host=example.com, got %q", r.Host)
@@ -113,10 +111,10 @@ func TestPinningProxy_Forward_Pinned_Success(t *testing.T) {
 	upstreamURL := mustParseURL(t, upstream.URL)
 
 	var decideCalls atomic.Int32
-	p := newPinningProxy(nil, nil, false, false, false, nil)
-	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
+	p := NewOutboundProxy(OutboundProxyOptions{})
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
 		decideCalls.Add(1)
-		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
+		return OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
 	}
 	p.dialPinned = func(ctx context.Context, network string, _ []netip.Addr, _ string) (net.Conn, error) {
 		return net.Dial(network, upstreamURL.Host)
@@ -151,10 +149,10 @@ func TestPinningProxy_Forward_Pinned_Success(t *testing.T) {
 	}
 }
 
-func TestPinningProxy_Forward_BlockedByDecide(t *testing.T) {
-	p := newPinningProxy(nil, nil, false, false, false, nil)
-	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
-		return gotenberg.OutboundDecision{}, fmt.Errorf("nope: %w", gotenberg.ErrFiltered)
+func TestOutboundProxy_Forward_BlockedByDecide(t *testing.T) {
+	p := NewOutboundProxy(OutboundProxyOptions{})
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
+		return OutboundDecision{}, fmt.Errorf("nope: %w", ErrFiltered)
 	}
 	p.dialPinned = func(_ context.Context, _ string, _ []netip.Addr, _ string) (net.Conn, error) {
 		t.Fatal("dialPinned must not be called when decide returns an error")
@@ -180,7 +178,7 @@ func TestPinningProxy_Forward_BlockedByDecide(t *testing.T) {
 	}
 }
 
-func TestPinningProxy_Forward_Bypass(t *testing.T) {
+func TestOutboundProxy_Forward_Bypass(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = fmt.Fprint(w, "bypassed")
 	}))
@@ -188,9 +186,9 @@ func TestPinningProxy_Forward_Bypass(t *testing.T) {
 	upstreamURL := mustParseURL(t, upstream.URL)
 
 	var bypassCalls atomic.Int32
-	p := newPinningProxy(nil, nil, false, false, false, nil)
-	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
-		return gotenberg.OutboundDecision{Bypass: true}, nil
+	p := NewOutboundProxy(OutboundProxyOptions{})
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
+		return OutboundDecision{Bypass: true}, nil
 	}
 	p.dialBypass = func(_ context.Context, network, _ string) (net.Conn, error) {
 		bypassCalls.Add(1)
@@ -223,7 +221,7 @@ func TestPinningProxy_Forward_Bypass(t *testing.T) {
 	}
 }
 
-func TestPinningProxy_Forward_StripsHopByHopHeaders(t *testing.T) {
+func TestOutboundProxy_Forward_StripsHopByHopHeaders(t *testing.T) {
 	var upstreamSawProxyAuth bool
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Proxy-Authorization") != "" {
@@ -237,9 +235,9 @@ func TestPinningProxy_Forward_StripsHopByHopHeaders(t *testing.T) {
 	t.Cleanup(upstream.Close)
 	upstreamURL := mustParseURL(t, upstream.URL)
 
-	p := newPinningProxy(nil, nil, false, false, false, nil)
-	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
-		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
+	p := NewOutboundProxy(OutboundProxyOptions{})
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
+		return OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
 	}
 	p.dialPinned = func(ctx context.Context, network string, _ []netip.Addr, _ string) (net.Conn, error) {
 		return net.Dial(network, upstreamURL.Host)
@@ -276,11 +274,11 @@ func TestPinningProxy_Forward_StripsHopByHopHeaders(t *testing.T) {
 	}
 }
 
-func TestPinningProxy_Forward_RejectsNonAbsoluteURL(t *testing.T) {
-	p := newPinningProxy(nil, nil, false, false, false, nil)
-	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
+func TestOutboundProxy_Forward_RejectsNonAbsoluteURL(t *testing.T) {
+	p := NewOutboundProxy(OutboundProxyOptions{})
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
 		t.Fatal("decide must not be called for malformed proxy request")
-		return gotenberg.OutboundDecision{}, nil
+		return OutboundDecision{}, nil
 	}
 	proxyURL := newProxyForTest(t, p)
 
@@ -306,7 +304,7 @@ func TestPinningProxy_Forward_RejectsNonAbsoluteURL(t *testing.T) {
 	}
 }
 
-func TestPinningProxy_CONNECT_Pinned_Success(t *testing.T) {
+func TestOutboundProxy_CONNECT_Pinned_Success(t *testing.T) {
 	upstreamAddr, stop := newRawTCPServer(t, func(c net.Conn) {
 		defer c.Close()
 		_, _ = c.Write([]byte("HI"))
@@ -317,10 +315,10 @@ func TestPinningProxy_CONNECT_Pinned_Success(t *testing.T) {
 	t.Cleanup(stop)
 
 	var decideCalls atomic.Int32
-	p := newPinningProxy(nil, nil, false, false, false, nil)
-	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
+	p := NewOutboundProxy(OutboundProxyOptions{})
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
 		decideCalls.Add(1)
-		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
+		return OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
 	}
 	p.dialPinned = func(_ context.Context, network string, _ []netip.Addr, _ string) (net.Conn, error) {
 		return net.Dial(network, upstreamAddr)
@@ -386,10 +384,10 @@ func TestPinningProxy_CONNECT_Pinned_Success(t *testing.T) {
 	}
 }
 
-func TestPinningProxy_CONNECT_BlockedByDecide(t *testing.T) {
-	p := newPinningProxy(nil, nil, false, false, false, nil)
-	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
-		return gotenberg.OutboundDecision{}, fmt.Errorf("nope: %w", gotenberg.ErrFiltered)
+func TestOutboundProxy_CONNECT_BlockedByDecide(t *testing.T) {
+	p := NewOutboundProxy(OutboundProxyOptions{})
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
+		return OutboundDecision{}, fmt.Errorf("nope: %w", ErrFiltered)
 	}
 	p.dialPinned = func(_ context.Context, _ string, _ []netip.Addr, _ string) (net.Conn, error) {
 		t.Fatal("dialPinned must not be called when decide returns an error")
@@ -419,13 +417,13 @@ func TestPinningProxy_CONNECT_BlockedByDecide(t *testing.T) {
 	}
 }
 
-// TestPinningProxy_DNSRebind_SingleResolution is the regression test for
+// TestOutboundProxy_DNSRebind_SingleResolution is the regression test for
 // the DNS rebinding window. It simulates a DNS authority that returns a
 // public IP on the first lookup and a loopback IP on subsequent lookups.
 // The proxy must resolve the host exactly once per request and dial the
 // IP validated at that moment, so that a second resolution by any later
 // layer cannot pivot the connection to an internal target.
-func TestPinningProxy_DNSRebind_SingleResolution(t *testing.T) {
+func TestOutboundProxy_DNSRebind_SingleResolution(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = fmt.Fprint(w, "public-upstream")
 	}))
@@ -433,20 +431,20 @@ func TestPinningProxy_DNSRebind_SingleResolution(t *testing.T) {
 	upstreamURL := mustParseURL(t, upstream.URL)
 
 	var lookupCount atomic.Int32
-	stubDecide := func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
+	stubDecide := func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
 		n := lookupCount.Add(1)
 		if n == 1 {
 			// First lookup: returns a public IP, validation passes, the
 			// proxy pins it for the dial.
-			return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("93.184.216.34")}}, nil
+			return OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("93.184.216.34")}}, nil
 		}
 		// Any subsequent lookup for the same host would return a
 		// loopback IP. This return value must not influence the dial
 		// because the proxy must not call decide again for this request.
-		return gotenberg.OutboundDecision{}, fmt.Errorf("rebind lookup: %w", gotenberg.ErrFiltered)
+		return OutboundDecision{}, fmt.Errorf("rebind lookup: %w", ErrFiltered)
 	}
 
-	p := newPinningProxy(nil, nil, false, false, false, nil)
+	p := NewOutboundProxy(OutboundProxyOptions{})
 	p.decide = stubDecide
 	p.dialPinned = func(_ context.Context, network string, addrs []netip.Addr, _ string) (net.Conn, error) {
 		if len(addrs) != 1 || addrs[0].String() != "93.184.216.34" {
@@ -481,27 +479,27 @@ func TestPinningProxy_DNSRebind_SingleResolution(t *testing.T) {
 	}
 }
 
-// TestPinningProxy_CONNECT_ClientCancellation_LoggedAtDebug verifies that
+// TestOutboundProxy_CONNECT_ClientCancellation_LoggedAtDebug verifies that
 // when decide fails because the request context was canceled or its
 // deadline expired (the canonical case is Chromium dropping a speculative
 // CONNECT before the proxy finishes resolving the host), the proxy logs
 // at debug and not at warn. Policy refusals must still warn; see
-// [TestPinningProxy_CONNECT_BlockedByDecide].
-func TestPinningProxy_CONNECT_ClientCancellation_LoggedAtDebug(t *testing.T) {
-	rec := &recordingHandler{}
-	p := newPinningProxy(nil, nil, false, false, false, nil)
-	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
+// [TestOutboundProxy_CONNECT_BlockedByDecide].
+func TestOutboundProxy_CONNECT_ClientCancellation_LoggedAtDebug(t *testing.T) {
+	rec := &proxyLogRecorder{}
+	p := NewOutboundProxy(OutboundProxyOptions{})
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
 		// Mimic the wrap chain produced by outbound.resolveHost when the
 		// DNS lookup is canceled mid-flight by Chromium hanging up.
-		return gotenberg.OutboundDecision{}, fmt.Errorf("validate '%s' host: resolve %q: lookup %s: %w", "https://www.google.com:443", "www.google.com", "www.google.com", context.Canceled)
+		return OutboundDecision{}, fmt.Errorf("validate '%s' host: resolve %q: lookup %s: %w", "https://www.google.com:443", "www.google.com", "www.google.com", context.Canceled)
 	}
 
 	err := p.Start(slog.New(rec))
 	if err != nil {
-		t.Fatalf("start pinning proxy: %v", err)
+		t.Fatalf("start outbound proxy: %v", err)
 	}
-	t.Cleanup(func() { _ = p.Stop(slog.New(rec)) })
-	proxyURL := p.URL()
+	t.Cleanup(func() { _ = p.Stop(context.Background()) })
+	proxyURL := "http://" + p.Addr()
 
 	conn, err := net.Dial("tcp", strings.TrimPrefix(proxyURL, "http://"))
 	if err != nil {
@@ -542,23 +540,23 @@ func TestPinningProxy_CONNECT_ClientCancellation_LoggedAtDebug(t *testing.T) {
 	}
 }
 
-// TestPinningProxy_Forward_ClientCancellation_LoggedAtDebug is the
+// TestOutboundProxy_Forward_ClientCancellation_LoggedAtDebug is the
 // handleForward equivalent of
-// [TestPinningProxy_CONNECT_ClientCancellation_LoggedAtDebug]. Plain
+// [TestOutboundProxy_CONNECT_ClientCancellation_LoggedAtDebug]. Plain
 // HTTP forward requests aborted by the client must also log at debug.
-func TestPinningProxy_Forward_ClientCancellation_LoggedAtDebug(t *testing.T) {
-	rec := &recordingHandler{}
-	p := newPinningProxy(nil, nil, false, false, false, nil)
-	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
-		return gotenberg.OutboundDecision{}, fmt.Errorf("validate host: %w", context.DeadlineExceeded)
+func TestOutboundProxy_Forward_ClientCancellation_LoggedAtDebug(t *testing.T) {
+	rec := &proxyLogRecorder{}
+	p := NewOutboundProxy(OutboundProxyOptions{})
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
+		return OutboundDecision{}, fmt.Errorf("validate host: %w", context.DeadlineExceeded)
 	}
 
 	err := p.Start(slog.New(rec))
 	if err != nil {
-		t.Fatalf("start pinning proxy: %v", err)
+		t.Fatalf("start outbound proxy: %v", err)
 	}
-	t.Cleanup(func() { _ = p.Stop(slog.New(rec)) })
-	proxyURL := p.URL()
+	t.Cleanup(func() { _ = p.Stop(context.Background()) })
+	proxyURL := "http://" + p.Addr()
 
 	client := &http.Client{
 		Transport: &http.Transport{Proxy: http.ProxyURL(mustParseURL(t, proxyURL))},
@@ -592,22 +590,22 @@ func TestPinningProxy_Forward_ClientCancellation_LoggedAtDebug(t *testing.T) {
 	}
 }
 
-// TestPinningProxy_PolicyDenial_LoggedAtWarn protects the existing
+// TestOutboundProxy_PolicyDenial_LoggedAtWarn protects the existing
 // behavior: a deny-list match (or any non-cancellation decide error) must
 // still surface at warn level so operators see real refusals.
-func TestPinningProxy_PolicyDenial_LoggedAtWarn(t *testing.T) {
-	rec := &recordingHandler{}
-	p := newPinningProxy(nil, nil, false, false, false, nil)
-	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
-		return gotenberg.OutboundDecision{}, fmt.Errorf("denied: %w", gotenberg.ErrFiltered)
+func TestOutboundProxy_PolicyDenial_LoggedAtWarn(t *testing.T) {
+	rec := &proxyLogRecorder{}
+	p := NewOutboundProxy(OutboundProxyOptions{})
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
+		return OutboundDecision{}, fmt.Errorf("denied: %w", ErrFiltered)
 	}
 
 	err := p.Start(slog.New(rec))
 	if err != nil {
-		t.Fatalf("start pinning proxy: %v", err)
+		t.Fatalf("start outbound proxy: %v", err)
 	}
-	t.Cleanup(func() { _ = p.Stop(slog.New(rec)) })
-	proxyURL := p.URL()
+	t.Cleanup(func() { _ = p.Stop(context.Background()) })
+	proxyURL := "http://" + p.Addr()
 
 	conn, err := net.Dial("tcp", strings.TrimPrefix(proxyURL, "http://"))
 	if err != nil {
@@ -645,17 +643,17 @@ func TestPinningProxy_PolicyDenial_LoggedAtWarn(t *testing.T) {
 	}
 }
 
-// TestPinningProxy_CONNECT_DialCancellation_LoggedAtDebug verifies that
+// TestOutboundProxy_CONNECT_DialCancellation_LoggedAtDebug verifies that
 // when the upstream dial fails because the request context was canceled
 // (typically Chromium dropping a speculative CONNECT before a slow IPv6
 // dial completes), the proxy logs at debug rather than warn. Genuine
 // dial failures must still warn; see
-// [TestPinningProxy_CONNECT_DialFailure_LoggedAtWarn].
-func TestPinningProxy_CONNECT_DialCancellation_LoggedAtDebug(t *testing.T) {
-	rec := &recordingHandler{}
-	p := newPinningProxy(nil, nil, false, false, false, nil)
-	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
-		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
+// [TestOutboundProxy_CONNECT_DialFailure_LoggedAtWarn].
+func TestOutboundProxy_CONNECT_DialCancellation_LoggedAtDebug(t *testing.T) {
+	rec := &proxyLogRecorder{}
+	p := NewOutboundProxy(OutboundProxyOptions{})
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
+		return OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
 	}
 	p.dialPinned = func(_ context.Context, _ string, _ []netip.Addr, _ string) (net.Conn, error) {
 		// Mimic a dial canceled mid-flight by the client hanging up,
@@ -665,10 +663,10 @@ func TestPinningProxy_CONNECT_DialCancellation_LoggedAtDebug(t *testing.T) {
 
 	err := p.Start(slog.New(rec))
 	if err != nil {
-		t.Fatalf("start pinning proxy: %v", err)
+		t.Fatalf("start outbound proxy: %v", err)
 	}
-	t.Cleanup(func() { _ = p.Stop(slog.New(rec)) })
-	proxyURL := p.URL()
+	t.Cleanup(func() { _ = p.Stop(context.Background()) })
+	proxyURL := "http://" + p.Addr()
 
 	conn, err := net.Dial("tcp", strings.TrimPrefix(proxyURL, "http://"))
 	if err != nil {
@@ -709,14 +707,14 @@ func TestPinningProxy_CONNECT_DialCancellation_LoggedAtDebug(t *testing.T) {
 	}
 }
 
-// TestPinningProxy_CONNECT_DialFailure_LoggedAtWarn guards the existing
+// TestOutboundProxy_CONNECT_DialFailure_LoggedAtWarn guards the existing
 // behavior: a genuine dial failure (host unreachable, refused, etc.)
 // must still warn so operators see real problems.
-func TestPinningProxy_CONNECT_DialFailure_LoggedAtWarn(t *testing.T) {
-	rec := &recordingHandler{}
-	p := newPinningProxy(nil, nil, false, false, false, nil)
-	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
-		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
+func TestOutboundProxy_CONNECT_DialFailure_LoggedAtWarn(t *testing.T) {
+	rec := &proxyLogRecorder{}
+	p := NewOutboundProxy(OutboundProxyOptions{})
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
+		return OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
 	}
 	p.dialPinned = func(_ context.Context, _ string, _ []netip.Addr, _ string) (net.Conn, error) {
 		return nil, errors.New("connection refused")
@@ -724,10 +722,10 @@ func TestPinningProxy_CONNECT_DialFailure_LoggedAtWarn(t *testing.T) {
 
 	err := p.Start(slog.New(rec))
 	if err != nil {
-		t.Fatalf("start pinning proxy: %v", err)
+		t.Fatalf("start outbound proxy: %v", err)
 	}
-	t.Cleanup(func() { _ = p.Stop(slog.New(rec)) })
-	proxyURL := p.URL()
+	t.Cleanup(func() { _ = p.Stop(context.Background()) })
+	proxyURL := "http://" + p.Addr()
 
 	conn, err := net.Dial("tcp", strings.TrimPrefix(proxyURL, "http://"))
 	if err != nil {
@@ -769,10 +767,10 @@ func TestPinningProxy_CONNECT_DialFailure_LoggedAtWarn(t *testing.T) {
 // connection rather than answering 502. Chromium treats a proxy response as
 // the origin's own, so a 502 would hide the failure from
 // failOnResourceLoadingFailed.
-func TestPinningProxy_Forward_DialFailure_ResetsClient(t *testing.T) {
-	p := newPinningProxy(nil, nil, false, false, false, nil)
-	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
-		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
+func TestOutboundProxy_Forward_DialFailure_ResetsClient(t *testing.T) {
+	p := NewOutboundProxy(OutboundProxyOptions{})
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
+		return OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
 	}
 	p.dialPinned = func(_ context.Context, _ string, _ []netip.Addr, _ string) (net.Conn, error) {
 		return nil, errors.New("connection refused")
@@ -781,11 +779,11 @@ func TestPinningProxy_Forward_DialFailure_ResetsClient(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 	err := p.Start(logger)
 	if err != nil {
-		t.Fatalf("start pinning proxy: %v", err)
+		t.Fatalf("start outbound proxy: %v", err)
 	}
-	t.Cleanup(func() { _ = p.Stop(logger) })
+	t.Cleanup(func() { _ = p.Stop(context.Background()) })
 
-	conn, err := net.Dial("tcp", strings.TrimPrefix(p.URL(), "http://"))
+	conn, err := net.Dial("tcp", p.Addr())
 	if err != nil {
 		t.Fatalf("dial proxy: %v", err)
 	}
@@ -806,15 +804,15 @@ func TestPinningProxy_Forward_DialFailure_ResetsClient(t *testing.T) {
 	}
 }
 
-// TestPinningProxy_Forward_RoundTripCancellation_LoggedAtDebug verifies
+// TestOutboundProxy_Forward_RoundTripCancellation_LoggedAtDebug verifies
 // the handleForward dial-cancellation path: when the inner Transport's
 // dial returns a canceled error (client hung up mid-dial), the proxy
 // logs at debug, not warn. Genuine RoundTrip failures still warn.
-func TestPinningProxy_Forward_RoundTripCancellation_LoggedAtDebug(t *testing.T) {
-	rec := &recordingHandler{}
-	p := newPinningProxy(nil, nil, false, false, false, nil)
-	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
-		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
+func TestOutboundProxy_Forward_RoundTripCancellation_LoggedAtDebug(t *testing.T) {
+	rec := &proxyLogRecorder{}
+	p := NewOutboundProxy(OutboundProxyOptions{})
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
+		return OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
 	}
 	p.dialPinned = func(_ context.Context, _ string, _ []netip.Addr, _ string) (net.Conn, error) {
 		return nil, fmt.Errorf("dial tcp [2001:4860::]:80: %w", context.Canceled)
@@ -822,10 +820,10 @@ func TestPinningProxy_Forward_RoundTripCancellation_LoggedAtDebug(t *testing.T) 
 
 	err := p.Start(slog.New(rec))
 	if err != nil {
-		t.Fatalf("start pinning proxy: %v", err)
+		t.Fatalf("start outbound proxy: %v", err)
 	}
-	t.Cleanup(func() { _ = p.Stop(slog.New(rec)) })
-	proxyURL := p.URL()
+	t.Cleanup(func() { _ = p.Stop(context.Background()) })
+	proxyURL := "http://" + p.Addr()
 
 	client := &http.Client{
 		Transport: &http.Transport{Proxy: http.ProxyURL(mustParseURL(t, proxyURL))},
@@ -887,7 +885,7 @@ func TestIsClientCancellation(t *testing.T) {
 		{
 			name: "policy denial",
 			ctx:  context.Background(),
-			err:  fmt.Errorf("denied: %w", gotenberg.ErrFiltered),
+			err:  fmt.Errorf("denied: %w", ErrFiltered),
 			want: false,
 		},
 		{
@@ -906,13 +904,13 @@ func TestIsClientCancellation(t *testing.T) {
 	}
 }
 
-func TestPinningProxy_StartTwice(t *testing.T) {
-	p := newPinningProxy(nil, nil, false, false, false, nil)
+func TestOutboundProxy_StartTwice(t *testing.T) {
+	p := NewOutboundProxy(OutboundProxyOptions{})
 	err := p.Start(testLogger())
 	if err != nil {
 		t.Fatalf("first Start: %v", err)
 	}
-	t.Cleanup(func() { _ = p.Stop(testLogger()) })
+	t.Cleanup(func() { _ = p.Stop(context.Background()) })
 
 	err = p.Start(testLogger())
 	if err == nil {
@@ -920,20 +918,20 @@ func TestPinningProxy_StartTwice(t *testing.T) {
 	}
 }
 
-func TestPinningProxy_StopIdempotent(t *testing.T) {
-	p := newPinningProxy(nil, nil, false, false, false, nil)
+func TestOutboundProxy_StopIdempotent(t *testing.T) {
+	p := NewOutboundProxy(OutboundProxyOptions{})
 	// Stop on a never-started proxy is a no-op.
-	if err := p.Stop(testLogger()); err != nil {
+	if err := p.Stop(context.Background()); err != nil {
 		t.Fatalf("Stop on never-started proxy: %v", err)
 	}
 
 	if err := p.Start(testLogger()); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	if err := p.Stop(testLogger()); err != nil {
+	if err := p.Stop(context.Background()); err != nil {
 		t.Fatalf("first Stop: %v", err)
 	}
-	if err := p.Stop(testLogger()); err != nil {
+	if err := p.Stop(context.Background()); err != nil {
 		t.Fatalf("second Stop on stopped proxy: %v", err)
 	}
 }
@@ -1084,20 +1082,20 @@ func TestSpliceTunnel_ActiveTransferOutlivesIdleTimeout(t *testing.T) {
 	}
 }
 
-// TestPinningProxy_CONNECT_TunnelCeiling verifies the ceiling that bounds what
+// TestOutboundProxy_CONNECT_TunnelCeiling verifies the ceiling that bounds what
 // tunnels refusing to end can accumulate. The idle bound cannot cover a peer
 // that trickles just under it, so the count is what stops the growth.
-func TestPinningProxy_CONNECT_TunnelCeiling(t *testing.T) {
+func TestOutboundProxy_CONNECT_TunnelCeiling(t *testing.T) {
 	// An upstream that accepts and then says nothing: the tunnel stays open.
 	upstreamAddr, stop := newRawTCPServer(t, func(c net.Conn) {
 		<-make(chan struct{})
 	})
 	t.Cleanup(stop)
 
-	p := newPinningProxy(nil, nil, false, false, false, nil)
+	p := NewOutboundProxy(OutboundProxyOptions{})
 	p.maxTunnels = 1
-	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
-		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
+		return OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
 	}
 	p.dialPinned = func(_ context.Context, network string, _ []netip.Addr, _ string) (net.Conn, error) {
 		return net.Dial(network, upstreamAddr)
@@ -1153,19 +1151,19 @@ func TestPinningProxy_CONNECT_TunnelCeiling(t *testing.T) {
 	}
 }
 
-// TestPinningProxy_TunnelSlotIsReleased verifies a completed tunnel gives its
+// TestOutboundProxy_TunnelSlotIsReleased verifies a completed tunnel gives its
 // slot back, so the ceiling bounds concurrency rather than lifetime totals.
-func TestPinningProxy_TunnelSlotIsReleased(t *testing.T) {
+func TestOutboundProxy_TunnelSlotIsReleased(t *testing.T) {
 	upstreamAddr, stop := newRawTCPServer(t, func(c net.Conn) {
 		defer c.Close()
 		_, _ = c.Write([]byte("HI"))
 	})
 	t.Cleanup(stop)
 
-	p := newPinningProxy(nil, nil, false, false, false, nil)
+	p := NewOutboundProxy(OutboundProxyOptions{})
 	p.maxTunnels = 1
-	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
-		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
+		return OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
 	}
 	p.dialPinned = func(_ context.Context, network string, _ []netip.Addr, _ string) (net.Conn, error) {
 		return net.Dial(network, upstreamAddr)
@@ -1215,10 +1213,10 @@ func TestPinningProxy_TunnelSlotIsReleased(t *testing.T) {
 	}
 }
 
-// TestPinningProxy_DecideTunnel_DenyRuleShapes pins which deny-list rule
+// TestOutboundProxy_DecideTunnel_DenyRuleShapes pins which deny-list rule
 // shapes refuse a CONNECT tunnel. The proxy only sees host:port, so the rules
 // are matched against the root URL of every scheme a tunnel may carry.
-func TestPinningProxy_DecideTunnel_DenyRuleShapes(t *testing.T) {
+func TestOutboundProxy_DecideTunnel_DenyRuleShapes(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		rule     string
@@ -1236,17 +1234,17 @@ func TestPinningProxy_DecideTunnel_DenyRuleShapes(t *testing.T) {
 		{"path rule cannot match a tunnel", `^wss://denied\.example/ws`, "denied.example:443", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := newPinningProxy(nil, []*regexp2.Regexp{regexp2.MustCompile(tc.rule, regexp2.None)}, false, false, false, nil)
-			p.decide = func(context.Context, string, []*regexp2.Regexp, []*regexp2.Regexp, time.Time) (gotenberg.OutboundDecision, error) {
-				return gotenberg.OutboundDecision{Bypass: true}, nil
+			p := NewOutboundProxy(OutboundProxyOptions{DenyList: []*regexp2.Regexp{regexp2.MustCompile(tc.rule, regexp2.None)}})
+			p.decide = func(context.Context, string, []*regexp2.Regexp, []*regexp2.Regexp, time.Time) (OutboundDecision, error) {
+				return OutboundDecision{Bypass: true}, nil
 			}
 
-			_, err := p.decideTunnel(context.Background(), tc.hostport, time.Now().Add(time.Minute))
+			_, err := p.DecideTunnel(context.Background(), tc.hostport, time.Now().Add(time.Minute))
 			if tc.denied != (err != nil) {
 				t.Fatalf("decideTunnel(%q) with rule %q: error = %v, want denied: %t", tc.hostport, tc.rule, err, tc.denied)
 			}
-			if err != nil && !errors.Is(err, gotenberg.ErrFiltered) {
-				t.Errorf("error %v does not wrap gotenberg.ErrFiltered", err)
+			if err != nil && !errors.Is(err, ErrFiltered) {
+				t.Errorf("error %v does not wrap ErrFiltered", err)
 			}
 		})
 	}
@@ -1255,16 +1253,16 @@ func TestPinningProxy_DecideTunnel_DenyRuleShapes(t *testing.T) {
 // A tunnel whose upstream never answers must end with the proxy that accepted
 // it, including across a restart: Shutdown does not reach hijacked
 // connections.
-func TestPinningProxy_StopClosesTunnels(t *testing.T) {
+func TestOutboundProxy_StopClosesTunnels(t *testing.T) {
 	upstreamAddr, stop := newRawTCPServer(t, func(c net.Conn) {
 		defer c.Close()
 		_, _ = io.Copy(io.Discard, c)
 	})
 	t.Cleanup(stop)
 
-	p := newPinningProxy(nil, nil, false, false, false, nil)
-	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
-		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
+	p := NewOutboundProxy(OutboundProxyOptions{})
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
+		return OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
 	}
 	p.dialPinned = func(_ context.Context, network string, _ []netip.Addr, _ string) (net.Conn, error) {
 		return net.Dial(network, upstreamAddr)
@@ -1273,10 +1271,10 @@ func TestPinningProxy_StopClosesTunnels(t *testing.T) {
 	for attempt := range 2 {
 		err := p.Start(testLogger())
 		if err != nil {
-			t.Fatalf("attempt %d start pinning proxy: %v", attempt, err)
+			t.Fatalf("attempt %d start outbound proxy: %v", attempt, err)
 		}
 
-		conn, err := net.Dial("tcp", strings.TrimPrefix(p.URL(), "http://"))
+		conn, err := net.Dial("tcp", p.Addr())
 		if err != nil {
 			t.Fatalf("attempt %d dial proxy: %v", attempt, err)
 		}
@@ -1293,9 +1291,9 @@ func TestPinningProxy_StopClosesTunnels(t *testing.T) {
 		}
 		_, _ = br.ReadString('\n')
 
-		err = p.Stop(testLogger())
+		err = p.Stop(context.Background())
 		if err != nil {
-			t.Fatalf("attempt %d stop pinning proxy: %v", attempt, err)
+			t.Fatalf("attempt %d stop outbound proxy: %v", attempt, err)
 		}
 
 		err = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
@@ -1311,33 +1309,33 @@ func TestPinningProxy_StopClosesTunnels(t *testing.T) {
 	}
 }
 
-// TestPinningProxy_Forward_RedactsURLInLogs pins that the logs of a forward
+// TestOutboundProxy_Forward_RedactsURLInLogs pins that the logs of a forward
 // the policy blocks, or that fails, name the URL without its query, which may
 // hold a token.
-func TestPinningProxy_Forward_RedactsURLInLogs(t *testing.T) {
+func TestOutboundProxy_Forward_RedactsURLInLogs(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
-		decide func(context.Context, string, []*regexp2.Regexp, []*regexp2.Regexp, time.Time) (gotenberg.OutboundDecision, error)
+		decide func(context.Context, string, []*regexp2.Regexp, []*regexp2.Regexp, time.Time) (OutboundDecision, error)
 		want   string
 	}{
 		{
 			name: "blocked",
-			decide: func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
-				return gotenberg.OutboundDecision{}, fmt.Errorf("nope: %w", gotenberg.ErrFiltered)
+			decide: func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
+				return OutboundDecision{}, fmt.Errorf("nope: %w", ErrFiltered)
 			},
 			want: "forward blocked for 'http://blocked.example/report'",
 		},
 		{
 			name: "failed",
-			decide: func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
-				return gotenberg.OutboundDecision{Bypass: true}, nil
+			decide: func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
+				return OutboundDecision{Bypass: true}, nil
 			},
 			want: "forward RoundTrip failed for 'http://blocked.example/report'",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			rec := &recordingHandler{}
-			p := newPinningProxy(nil, nil, false, false, false, nil)
+			rec := &proxyLogRecorder{}
+			p := NewOutboundProxy(OutboundProxyOptions{})
 			p.decide = tc.decide
 			p.dialBypass = func(context.Context, string, string) (net.Conn, error) {
 				return nil, errors.New("connection refused")
@@ -1345,12 +1343,12 @@ func TestPinningProxy_Forward_RedactsURLInLogs(t *testing.T) {
 
 			err := p.Start(slog.New(rec))
 			if err != nil {
-				t.Fatalf("start pinning proxy: %v", err)
+				t.Fatalf("start outbound proxy: %v", err)
 			}
-			t.Cleanup(func() { _ = p.Stop(slog.New(rec)) })
+			t.Cleanup(func() { _ = p.Stop(context.Background()) })
 
 			client := &http.Client{
-				Transport: &http.Transport{Proxy: http.ProxyURL(mustParseURL(t, p.URL()))},
+				Transport: &http.Transport{Proxy: http.ProxyURL(mustParseURL(t, "http://"+p.Addr()))},
 				Timeout:   5 * time.Second,
 			}
 			resp, err := client.Get("http://blocked.example/report?token=secret")
@@ -1374,15 +1372,21 @@ func TestPinningProxy_Forward_RedactsURLInLogs(t *testing.T) {
 	}
 }
 
-// TestPinningProxy_HostMapping runs the real outbound decision with a
+// TestOutboundProxy_HostMapping runs the real outbound decision with a
 // --chromium-host-resolver-rules mapping: the proxy dials where the rules send
 // a request, and the IP-class policy judges that address. Before the proxy
 // applied the rules, any rule turned it off, and with it the only layer that
 // can refuse a WebSocket handshake.
-func TestPinningProxy_HostMapping(t *testing.T) {
-	rules, err := parseHostResolverRules("MAP mapped.test 1.1.1.1:8443, MAP private.test 10.0.0.5, MAP unrelated.invalid 127.0.0.1")
-	if err != nil {
-		t.Fatalf("parse rules: %v", err)
+func TestOutboundProxy_HostMapping(t *testing.T) {
+	mapping := func(host, port string) (string, string, error) {
+		switch host {
+		case "mapped.test":
+			return "1.1.1.1", "8443", nil
+		case "private.test":
+			return "10.0.0.5", port, nil
+		default:
+			return host, port, nil
+		}
 	}
 
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1399,7 +1403,7 @@ func TestPinningProxy_HostMapping(t *testing.T) {
 		dialedAddrs []netip.Addr
 		dialedPort  string
 	)
-	p := newPinningProxy(nil, nil, true, false, false, rules.rewrite)
+	p := NewOutboundProxy(OutboundProxyOptions{DenyPrivateIPs: true, HostMapping: mapping})
 	p.dialPinned = func(_ context.Context, network string, addrs []netip.Addr, port string) (net.Conn, error) {
 		dialedMu.Lock()
 		dialedAddrs, dialedPort = addrs, port

@@ -1,4 +1,4 @@
-package chromium
+package gotenberg
 
 import (
 	"context"
@@ -15,15 +15,13 @@ import (
 	"time"
 
 	"github.com/dlclark/regexp2/v2"
-
-	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
 
-// TestPinningProxy_Forward_ThroughUpstreamProxy verifies that when the
+// TestOutboundProxy_Forward_ThroughUpstreamProxy verifies that when the
 // operator opts into proxy-environment honoring, a plain HTTP request is
 // forwarded through the upstream (corporate) proxy with the credentials
 // Chromium cannot supply. See https://github.com/gotenberg/gotenberg/issues/1592.
-func TestPinningProxy_Forward_ThroughUpstreamProxy(t *testing.T) {
+func TestOutboundProxy_Forward_ThroughUpstreamProxy(t *testing.T) {
 	var gotAuth atomic.Value
 	gotAuth.Store("")
 
@@ -38,11 +36,11 @@ func TestPinningProxy_Forward_ThroughUpstreamProxy(t *testing.T) {
 	upstreamURL := mustParseURL(t, upstream.URL)
 	upstreamURL.User = url.UserPassword("bob", "pw")
 
-	p := newPinningProxy(nil, nil, false, false, true, nil)
+	p := NewOutboundProxy(OutboundProxyOptions{EnableEnvironmentProxy: true})
 	// Force every destination through our stub upstream proxy.
 	p.upstreamProxy = func(_ *url.URL) (*url.URL, error) { return upstreamURL, nil }
-	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (gotenberg.OutboundDecision, error) {
-		return gotenberg.OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
+	p.decide = func(_ context.Context, _ string, _, _ []*regexp2.Regexp, _ time.Time) (OutboundDecision, error) {
+		return OutboundDecision{Pinned: []netip.Addr{netip.MustParseAddr("127.0.0.1")}}, nil
 	}
 	p.dialPinned = func(_ context.Context, _ string, _ []netip.Addr, _ string) (net.Conn, error) {
 		t.Fatal("dialPinned must not be called when routing through an upstream proxy")

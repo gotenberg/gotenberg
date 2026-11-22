@@ -1,4 +1,4 @@
-package chromium
+package gotenberg
 
 import (
 	"context"
@@ -17,27 +17,27 @@ import (
 
 	"github.com/dlclark/regexp2/v2"
 	"golang.org/x/net/http/httpproxy"
-
-	"github.com/gotenberg/gotenberg/v9/pkg/gotenberg"
 )
 
-// pinningProxy is a loopback-bound HTTP/1.1 forward and CONNECT proxy
-// placed between Chromium and the outbound network. It runs the same
-// allow/deny/IP-public validation as [gotenberg.FilterOutboundURL] on
-// every request and dials the destination using the IPs resolved at that
-// moment. Routing Chromium through this proxy eliminates the Chromium-side
-// DNS lookup that otherwise opens a DNS rebinding window between
-// Gotenberg's validation and Chromium's TCP connect.
+// OutboundProxy is a loopback-bound HTTP/1.1 forward and CONNECT proxy placed
+// between a converter, such as Chromium or LibreOffice, and the outbound
+// network. It runs [DecideOutbound] on every request and dials the destination
+// using the IPs resolved at that moment. Routing a converter through this
+// proxy eliminates the converter-side DNS lookup that otherwise opens a DNS
+// rebinding window between Gotenberg's validation and the converter's TCP
+// connect.
 //
-// The proxy is transparent to the caller. HTTPS sub-resources tunnel
-// through CONNECT with Chromium performing its own TLS handshake using
-// the original hostname, preserving SNI and certificate validation.
-type pinningProxy struct {
+// The proxy is transparent to the caller. HTTPS requests tunnel through
+// CONNECT with the converter performing its own TLS handshake using the
+// original hostname, preserving SNI and certificate validation. A tunnel only
+// exposes its host and port, so the filters see the root URL of the tunnel,
+// never its path. See [OutboundProxy.DecideTunnel].
+type OutboundProxy struct {
 	allowList []*regexp2.Regexp
 	denyList  []*regexp2.Regexp
 
 	// decide resolves and validates a URL. Tests may override it.
-	decide func(ctx context.Context, rawURL string, allowList, denyList []*regexp2.Regexp, deadline time.Time) (gotenberg.OutboundDecision, error)
+	decide func(ctx context.Context, rawURL string, allowList, denyList []*regexp2.Regexp, deadline time.Time) (OutboundDecision, error)
 
 	// dialPinned dials the pinned IPs for a decision. Tests may override
 	// it to connect to a stub upstream regardless of decision.
@@ -50,10 +50,13 @@ type pinningProxy struct {
 	// upstreamProxy resolves the upstream (corporate) proxy for a
 	// destination URL from the standard proxy environment variables, or
 	// returns a nil URL to connect directly. It is nil unless the operator
-	// opted into proxy-environment honoring. When set, the pinning proxy
-	// performs the authenticated proxy handshake that Chromium cannot. See
+	// opted into proxy-environment honoring. When set, the proxy performs
+	// the authenticated proxy handshake that the converter cannot. See
 	// https://github.com/gotenberg/gotenberg/issues/1592.
 	upstreamProxy func(*url.URL) (*url.URL, error)
+
+	// logRefusal records a request the filters refused.
+	logRefusal func(ctx context.Context, rawURL string, err error)
 
 	listener net.Listener
 	server   *http.Server
@@ -78,32 +81,58 @@ type pinningProxy struct {
 	mu      sync.Mutex
 }
 
-// newPinningProxy returns a pinning proxy configured with the given
-// allow/deny lists, IP-class policy, and host mapping, which may be nil. They
-// are applied via [gotenberg.DecideOutbound] on every request the proxy sees,
-// so Chromium inherits whatever posture the operator selected, and connects
-// where the mapping sends it. The returned proxy is not yet listening; call
-// Start.
-func newPinningProxy(allowList, denyList []*regexp2.Regexp, denyPrivateIPs, denyPublicIPs, enableEnvironmentProxy bool, hostMapping gotenberg.HostMapping) *pinningProxy {
-	p := &pinningProxy{
-		allowList: allowList,
-		denyList:  denyList,
-		decide: func(ctx context.Context, rawURL string, allow, deny []*regexp2.Regexp, deadline time.Time) (gotenberg.OutboundDecision, error) {
-			return gotenberg.DecideOutbound(ctx, rawURL, allow, deny, deadline,
-				gotenberg.WithDenyPrivateIPs(denyPrivateIPs),
-				gotenberg.WithDenyPublicIPs(denyPublicIPs),
-				gotenberg.WithHostMapping(hostMapping),
+// OutboundProxyOptions configures an [OutboundProxy].
+type OutboundProxyOptions struct {
+	// AllowList and DenyList are the operator's outbound lists, matched as
+	// [DecideOutbound] matches them.
+	AllowList []*regexp2.Regexp
+	DenyList  []*regexp2.Regexp
+
+	// DenyPrivateIPs and DenyPublicIPs refuse destinations of that IP class.
+	// See [WithDenyPrivateIPs] and [WithDenyPublicIPs].
+	DenyPrivateIPs bool
+	DenyPublicIPs  bool
+
+	// EnableEnvironmentProxy sends the requests the filters allow through the
+	// proxy the standard proxy environment variables name, credentials
+	// included.
+	EnableEnvironmentProxy bool
+
+	// HostMapping sends a host where the operator's rules map it. It may be
+	// nil. See [WithHostMapping].
+	HostMapping HostMapping
+
+	// LogRefusal records a request the filters refused, with the URL the
+	// filters saw. When nil, the proxy logs it through [LogOutboundRefusal]
+	// with its own logger.
+	LogRefusal func(ctx context.Context, rawURL string, err error)
+}
+
+// NewOutboundProxy returns a proxy that applies opts to every request it
+// sees, so the converter behind it inherits whatever posture the operator
+// selected, and connects where the host mapping sends it. The returned proxy
+// is not yet listening; call [OutboundProxy.Start].
+func NewOutboundProxy(opts OutboundProxyOptions) *OutboundProxy {
+	p := &OutboundProxy{
+		allowList: opts.AllowList,
+		denyList:  opts.DenyList,
+		decide: func(ctx context.Context, rawURL string, allow, deny []*regexp2.Regexp, deadline time.Time) (OutboundDecision, error) {
+			return DecideOutbound(ctx, rawURL, allow, deny, deadline,
+				WithDenyPrivateIPs(opts.DenyPrivateIPs),
+				WithDenyPublicIPs(opts.DenyPublicIPs),
+				WithHostMapping(opts.HostMapping),
 			)
 		},
-		dialPinned: gotenberg.DialPinned,
+		dialPinned: DialPinned,
 		dialBypass: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			dialer := &net.Dialer{Timeout: 10 * time.Second}
 			return dialer.DialContext(ctx, network, addr)
 		},
+		logRefusal: opts.LogRefusal,
 		maxTunnels: maxConcurrentTunnels,
 	}
 
-	if enableEnvironmentProxy {
+	if opts.EnableEnvironmentProxy {
 		// Honor the standard proxy environment variables, credentials
 		// included. httpproxy reads the environment now and applies NO_PROXY.
 		p.upstreamProxy = httpproxy.FromEnvironment().ProxyFunc()
@@ -113,26 +142,26 @@ func newPinningProxy(allowList, denyList []*regexp2.Regexp, denyPrivateIPs, deny
 }
 
 // Start binds the proxy to 127.0.0.1 on an ephemeral port and serves in a
-// background goroutine. Bind failures return an error; the caller must
-// not proceed to start Chromium with --proxy-server.
-func (p *pinningProxy) Start(logger *slog.Logger) error {
+// background goroutine, logging with logger. Bind failures return an error;
+// the caller must not point the converter at the proxy then.
+func (p *OutboundProxy) Start(logger *slog.Logger) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	if p.started {
-		return errors.New("pinning proxy already started")
+		return errors.New("outbound proxy already started")
 	}
 
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return fmt.Errorf("bind pinning proxy: %w", err)
+		return fmt.Errorf("bind outbound proxy: %w", err)
 	}
 
 	baseCtx, cancelRequests := context.WithCancel(context.Background())
 
 	p.listener = l
 	p.cancelRequests = cancelRequests
-	p.logger = logger.With(slog.String("logger", "pinning-proxy"))
+	p.logger = logger
 	p.server = &http.Server{
 		Handler:     http.HandlerFunc(p.serveHTTP),
 		BaseContext: func(net.Listener) context.Context { return baseCtx },
@@ -145,18 +174,18 @@ func (p *pinningProxy) Start(logger *slog.Logger) error {
 	p.wg.Go(func() {
 		serveErr := p.server.Serve(l)
 		if serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
-			p.logger.ErrorContext(context.Background(), fmt.Sprintf("pinning proxy serve: %s", serveErr))
+			p.logger.ErrorContext(context.Background(), fmt.Sprintf("outbound proxy serve: %s", serveErr))
 		}
 	})
 
 	p.started = true
-	p.logger.DebugContext(context.Background(), fmt.Sprintf("pinning proxy listening on %s", l.Addr()))
+	p.logger.DebugContext(context.Background(), fmt.Sprintf("outbound proxy listening on %s", l.Addr()))
 	return nil
 }
 
-// Stop shuts the proxy down and waits for in-flight handlers to complete.
-// Safe to call on a non-started proxy.
-func (p *pinningProxy) Stop(logger *slog.Logger) error {
+// Stop shuts the proxy down and waits for in-flight handlers to complete,
+// until ctx ends. Safe to call on a non-started proxy.
+func (p *OutboundProxy) Stop(ctx context.Context) error {
 	p.mu.Lock()
 	if !p.started {
 		p.mu.Unlock()
@@ -170,34 +199,31 @@ func (p *pinningProxy) Stop(logger *slog.Logger) error {
 
 	// Force in-flight tunnels shut before draining the server. Shutdown does
 	// not reach them, so a tunnel whose upstream never answers would otherwise
-	// survive the proxy, and with it every Chromium restart.
+	// survive the proxy, and with it every converter restart.
 	cancelRequests()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	shutdownErr := srv.Shutdown(ctx)
 	p.wg.Wait()
 
 	if shutdownErr != nil {
-		return fmt.Errorf("shutdown pinning proxy: %w", shutdownErr)
+		return fmt.Errorf("shutdown outbound proxy: %w", shutdownErr)
 	}
-	logger.DebugContext(context.Background(), "pinning proxy stopped")
+	p.logger.DebugContext(ctx, "outbound proxy stopped")
 	return nil
 }
 
-// URL returns the proxy URL suitable for Chromium's --proxy-server flag.
-// Returns an empty string when the proxy is not listening.
-func (p *pinningProxy) URL() string {
+// Addr returns the host:port the proxy listens on, or an empty string when
+// the proxy has never listened.
+func (p *OutboundProxy) Addr() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.listener == nil {
 		return ""
 	}
-	return "http://" + p.listener.Addr().String()
+	return p.listener.Addr().String()
 }
 
-func (p *pinningProxy) serveHTTP(w http.ResponseWriter, req *http.Request) {
+func (p *OutboundProxy) serveHTTP(w http.ResponseWriter, req *http.Request) {
 	if req.Method == http.MethodConnect {
 		p.handleConnect(w, req)
 		return
@@ -205,23 +231,23 @@ func (p *pinningProxy) serveHTTP(w http.ResponseWriter, req *http.Request) {
 	p.handleForward(w, req)
 }
 
-// handleConnect handles HTTPS (and any other CONNECT) tunnels. Chromium
-// issues CONNECT host:port; the proxy validates the host, dials the
-// pinned IP, and splices the client socket with the upstream socket.
-// Chromium then negotiates TLS end-to-end with the original hostname in
-// SNI.
-func (p *pinningProxy) handleConnect(w http.ResponseWriter, req *http.Request) {
+// handleConnect handles HTTPS (and any other CONNECT) tunnels. The converter
+// issues CONNECT host:port; the proxy validates the host, dials the pinned
+// IP, and splices the client socket with the upstream socket. The converter
+// then negotiates TLS end-to-end with the original hostname in SNI.
+func (p *OutboundProxy) handleConnect(w http.ResponseWriter, req *http.Request) {
 	// A ceiling, not a tuning knob: it bounds what a tunnel that refuses to end
 	// can accumulate, whatever keeps it alive. [spliceIdleTimeout] ends a silent
 	// tunnel, but a peer trickling a byte just under it stays "active" forever,
 	// and a compromised renderer can hold the client side open to match.
 	//
-	// Chromium caps itself well below this. Its socket pool manager allows 128
-	// sockets per proxy chain for normal traffic plus 128 for WebSocket
-	// traffic, and every request Gotenberg's Chromium makes traverses this one
-	// proxy chain, so an honest browser cannot exceed 256 tunnels here. At
-	// double that, a real page never meets the ceiling and a hostile one stops
-	// at it.
+	// Chromium, the most demanding converter, caps itself well below this. Its
+	// socket pool manager allows 128 sockets per proxy chain for normal traffic
+	// plus 128 for WebSocket traffic, and every request Gotenberg's Chromium
+	// makes traverses this one proxy chain, so an honest browser cannot exceed
+	// 256 tunnels here. At double that, a real page never meets the ceiling and
+	// a hostile one stops at it. LibreOffice converts one document at a time
+	// and fetches far less.
 	if !p.acquireTunnel() {
 		p.logger.WarnContext(req.Context(), fmt.Sprintf("CONNECT to '%s' refused: %d tunnels already in flight", req.Host, p.maxTunnels))
 		http.Error(w, "too many tunnels", http.StatusServiceUnavailable)
@@ -241,11 +267,14 @@ func (p *pinningProxy) handleConnect(w http.ResponseWriter, req *http.Request) {
 		deadline = time.Now().Add(30 * time.Second)
 	}
 
-	decision, err := p.decideTunnel(req.Context(), req.Host, deadline)
+	decision, err := p.DecideTunnel(req.Context(), req.Host, deadline)
 	if err != nil {
-		if isClientCancellation(req.Context(), err) {
+		switch {
+		case isClientCancellation(req.Context(), err):
 			p.logger.DebugContext(req.Context(), fmt.Sprintf("CONNECT abandoned by client for '%s': %s", req.Host, err))
-		} else {
+		case p.logRefusal != nil && FilterRule(err) != "":
+			p.logRefusal(req.Context(), "https://"+req.Host, err)
+		default:
 			p.logger.WarnContext(req.Context(), fmt.Sprintf("CONNECT blocked for '%s': %s", req.Host, err))
 		}
 		http.Error(w, "CONNECT blocked", http.StatusForbidden)
@@ -253,7 +282,7 @@ func (p *pinningProxy) handleConnect(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// When the operator routes egress through an authenticated proxy,
-	// Chromium cannot supply the credentials itself, so the pinning proxy
+	// the converter cannot supply the credentials itself, so this proxy
 	// performs the CONNECT (and authentication) upstream. The decision above
 	// still gated the destination through the allow/deny and IP-class rules.
 	var proxyURL *url.URL
@@ -267,7 +296,7 @@ func (p *pinningProxy) handleConnect(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// A host-resolver rule may send the tunnel to another host and port. An
-	// upstream proxy still receives the original host, as Chromium itself
+	// upstream proxy still receives the original host, as a browser itself
 	// leaves name resolution to the proxy it talks to.
 	target := req.Host
 	if decision.Target != "" {
@@ -326,7 +355,7 @@ func (p *pinningProxy) handleConnect(w http.ResponseWriter, req *http.Request) {
 	spliceTunnel(client, upstream, req.Context().Done(), spliceIdleTimeout)
 }
 
-// tunnelSchemes lists the schemes Chromium sends through a CONNECT tunnel and
+// tunnelSchemes lists the schemes a converter sends through a CONNECT tunnel and
 // their default ports: HTTPS sub-resources and WebSocket handshakes, secure or
 // not. Plain http:// requests use the forward path instead.
 var tunnelSchemes = []struct {
@@ -338,7 +367,7 @@ var tunnelSchemes = []struct {
 	{"ws", "80"},
 }
 
-// decideTunnel validates the destination of a CONNECT tunnel to hostport.
+// DecideTunnel validates the destination of a CONNECT tunnel to hostport.
 //
 // A tunnel is opaque: the proxy sees the host and port, never the scheme or
 // the path of what travels through it. The deny-list is therefore matched
@@ -346,16 +375,15 @@ var tunnelSchemes = []struct {
 // "https://host/" and "wss://host/", so that a rule anchored on a scheme or on
 // "host/" refuses the tunnel exactly as it refuses the ordinary request. Such a
 // rule refuses every tunnel to that host and port, whatever travels through
-// it. Rules that name a path cannot match here; for WebSocket handshakes,
-// [listenForEventWebSocketCreated] covers them.
+// it. Rules that name a path cannot match here: only a layer that sees the
+// full URL, such as Chromium's request interception, can apply them.
 //
-// The allow-list and the IP-class checks then run through decide on the
-// https:// form, as before. The scheme does not influence the CONNECT handling
-// beyond filtering.
-func (p *pinningProxy) decideTunnel(ctx context.Context, hostport string, deadline time.Time) (gotenberg.OutboundDecision, error) {
+// The allow-list and the IP-class checks then run on the https:// form. The
+// scheme does not influence the CONNECT handling beyond filtering.
+func (p *OutboundProxy) DecideTunnel(ctx context.Context, hostport string, deadline time.Time) (OutboundDecision, error) {
 	host, port, err := net.SplitHostPort(hostport)
 	if err != nil {
-		return gotenberg.OutboundDecision{}, fmt.Errorf("split CONNECT target %q: %v: %w", hostport, err, gotenberg.ErrFiltered)
+		return OutboundDecision{}, fmt.Errorf("split CONNECT target %q: %v: %w", hostport, err, ErrFiltered)
 	}
 
 	for _, ts := range tunnelSchemes {
@@ -367,24 +395,24 @@ func (p *pinningProxy) decideTunnel(ctx context.Context, hostport string, deadli
 			}
 		}
 
-		err = gotenberg.FilterDenyList(ts.scheme+"://"+authority+"/", p.denyList, deadline)
+		err = FilterDenyList(ts.scheme+"://"+authority+"/", p.denyList, deadline)
 		if err != nil {
-			return gotenberg.OutboundDecision{}, err
+			return OutboundDecision{}, err
 		}
 	}
 
 	return p.decide(ctx, "https://"+hostport, p.allowList, p.denyList, deadline)
 }
 
-// maxConcurrentTunnels is the default for [pinningProxy.maxTunnels]. See
-// [pinningProxy.handleConnect] for how the value is derived.
+// maxConcurrentTunnels is the default for [OutboundProxy.maxTunnels]. See
+// [OutboundProxy.handleConnect] for how the value is derived.
 const maxConcurrentTunnels = 512
 
 // acquireTunnel reserves a slot for one CONNECT handler, reporting false when
-// the proxy is already at [pinningProxy.maxTunnels]. The compare-and-swap loop
+// the proxy is already at [OutboundProxy.maxTunnels]. The compare-and-swap loop
 // keeps the check and the increment atomic, so concurrent handlers cannot
 // overshoot the ceiling between them.
-func (p *pinningProxy) acquireTunnel() bool {
+func (p *OutboundProxy) acquireTunnel() bool {
 	for {
 		current := p.tunnels.Load()
 		if current >= p.maxTunnels {
@@ -396,8 +424,8 @@ func (p *pinningProxy) acquireTunnel() bool {
 	}
 }
 
-// releaseTunnel returns a slot taken by [pinningProxy.acquireTunnel].
-func (p *pinningProxy) releaseTunnel() {
+// releaseTunnel returns a slot taken by [OutboundProxy.acquireTunnel].
+func (p *OutboundProxy) releaseTunnel() {
 	p.tunnels.Add(-1)
 }
 
@@ -407,7 +435,7 @@ func (p *pinningProxy) releaseTunnel() {
 // Nothing else bounds one. The hijacked connections carry no deadline: the
 // server clears the header read deadline once the request line is in, and
 // net.Dialer.Timeout only covers the connect. net/http also untracks a
-// connection once it is hijacked, so neither Server.Shutdown nor a Chromium
+// connection once it is hijacked, so neither Server.Shutdown nor a converter
 // restart reaps it. Left alone, an upstream that accepts the tunnel and then
 // answers nothing holds two goroutines and two sockets until the process dies.
 //
@@ -510,7 +538,7 @@ func copyTracking(dst, src net.Conn, lastActivity *atomic.Int64, writeTimeout ti
 // handleForward handles plain HTTP requests sent to the proxy as absolute
 // URIs (GET http://host/path). The proxy revalidates the URL, then
 // forwards the request via a transport that dials the pinned IP.
-func (p *pinningProxy) handleForward(w http.ResponseWriter, req *http.Request) {
+func (p *OutboundProxy) handleForward(w http.ResponseWriter, req *http.Request) {
 	if req.URL == nil || req.URL.Scheme == "" || req.URL.Host == "" {
 		http.Error(w, "absolute URL required", http.StatusBadRequest)
 		return
@@ -523,10 +551,13 @@ func (p *pinningProxy) handleForward(w http.ResponseWriter, req *http.Request) {
 
 	decision, err := p.decide(req.Context(), req.URL.String(), p.allowList, p.denyList, deadline)
 	if err != nil {
-		if isClientCancellation(req.Context(), err) {
-			p.logger.DebugContext(req.Context(), fmt.Sprintf("forward abandoned by client for '%s': %s", gotenberg.RedactURL(req.URL.String()), err))
-		} else {
-			p.logger.WarnContext(req.Context(), fmt.Sprintf("forward blocked for '%s': %s", gotenberg.RedactURL(req.URL.String()), err))
+		switch {
+		case isClientCancellation(req.Context(), err):
+			p.logger.DebugContext(req.Context(), fmt.Sprintf("forward abandoned by client for '%s': %s", RedactURL(req.URL.String()), err))
+		case p.logRefusal != nil && FilterRule(err) != "":
+			p.logRefusal(req.Context(), req.URL.String(), err)
+		default:
+			p.logger.WarnContext(req.Context(), fmt.Sprintf("forward blocked for '%s': %s", RedactURL(req.URL.String()), err))
 		}
 		http.Error(w, "request blocked", http.StatusForbidden)
 		return
@@ -536,7 +567,7 @@ func (p *pinningProxy) handleForward(w http.ResponseWriter, req *http.Request) {
 	if p.upstreamProxy != nil {
 		proxyURL, err = p.upstreamProxy(req.URL)
 		if err != nil {
-			p.logger.WarnContext(req.Context(), fmt.Sprintf("resolve upstream proxy for '%s': %s", gotenberg.RedactURL(req.URL.String()), err))
+			p.logger.WarnContext(req.Context(), fmt.Sprintf("resolve upstream proxy for '%s': %s", RedactURL(req.URL.String()), err))
 			http.Error(w, "upstream proxy error", http.StatusBadGateway)
 			return
 		}
@@ -585,9 +616,9 @@ func (p *pinningProxy) handleForward(w http.ResponseWriter, req *http.Request) {
 	resp, err := transport.RoundTrip(outReq)
 	if err != nil {
 		if isClientCancellation(req.Context(), err) {
-			p.logger.DebugContext(req.Context(), fmt.Sprintf("forward RoundTrip abandoned by client for '%s': %s", gotenberg.RedactURL(req.URL.String()), err))
+			p.logger.DebugContext(req.Context(), fmt.Sprintf("forward RoundTrip abandoned by client for '%s': %s", RedactURL(req.URL.String()), err))
 		} else {
-			p.logger.WarnContext(req.Context(), fmt.Sprintf("forward RoundTrip failed for '%s': %s", gotenberg.RedactURL(req.URL.String()), err))
+			p.logger.WarnContext(req.Context(), fmt.Sprintf("forward RoundTrip failed for '%s': %s", RedactURL(req.URL.String()), err))
 		}
 		resetClient(w)
 		return
@@ -634,7 +665,7 @@ func copyHeaders(dst, src http.Header) {
 // rule decision. Callers downgrade these to debug to avoid alarming
 // operators with noise from speculative or aborted browser requests. The
 // canonical case is a Chromium DNS prefetch that the browser drops before
-// the proxy's [outbound.resolveHost] call returns. The [net.DNSError]
+// the proxy's [resolveHost] call returns. The [net.DNSError]
 // returned by [net.Resolver.LookupNetIP] unwraps to [context.Canceled] or
 // [context.DeadlineExceeded] in that case, so an [errors.Is] walk catches
 // it.
@@ -646,16 +677,16 @@ func isClientCancellation(ctx context.Context, err error) bool {
 }
 
 // dialThroughUpstreamProxy tunnels to target through the upstream proxy,
-// letting [gotenberg.DialThroughProxy] perform the authenticated CONNECT that
-// Chromium cannot. dialBypass dials the proxy itself and is overridable in
+// letting [DialThroughProxy] perform the authenticated CONNECT that
+// the converter cannot. dialBypass dials the proxy itself and is overridable in
 // tests. See https://github.com/gotenberg/gotenberg/issues/1592.
-func (p *pinningProxy) dialThroughUpstreamProxy(ctx context.Context, proxyURL *url.URL, target string) (net.Conn, error) {
-	return gotenberg.DialThroughProxy(ctx, proxyURL, target, p.dialBypass)
+func (p *OutboundProxy) dialThroughUpstreamProxy(ctx context.Context, proxyURL *url.URL, target string) (net.Conn, error) {
+	return DialThroughProxy(ctx, proxyURL, target, p.dialBypass)
 }
 
 // resetClient aborts the client connection with a TCP reset instead of
-// answering. Chromium treats a proxy response as the origin's own, so a 502
-// would reach the page as an ordinary HTTP error; a reset surfaces as a
+// answering. A converter treats a proxy response as the origin's own, so a
+// 502 would reach the document as an ordinary HTTP error; a reset surfaces as a
 // network failure, as it would without the proxy.
 func resetClient(w http.ResponseWriter) {
 	hj, ok := w.(http.Hijacker)

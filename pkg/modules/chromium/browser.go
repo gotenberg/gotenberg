@@ -145,7 +145,7 @@ type chromiumBrowser struct {
 
 	arguments    browserArguments
 	fs           *gotenberg.FileSystem
-	pinningProxy *pinningProxy
+	pinningProxy *gotenberg.OutboundProxy
 
 	// pid is the browser process, which the memory watch reads with its
 	// descendants, the renderers. Set by Start, under ctxMu.
@@ -162,10 +162,17 @@ type chromiumBrowser struct {
 
 func newChromiumBrowser(arguments browserArguments) browser {
 	b := &chromiumBrowser{
-		initialCtx:   context.Background(),
-		arguments:    arguments,
-		fs:           gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
-		pinningProxy: newPinningProxy(arguments.allowList, arguments.denyList, arguments.denyPrivateIPs, arguments.denyPublicIPs, arguments.enableEnvironmentProxy, arguments.hostMapping()),
+		initialCtx: context.Background(),
+		arguments:  arguments,
+		fs:         gotenberg.NewFileSystem(new(gotenberg.OsMkdirAll)),
+		pinningProxy: gotenberg.NewOutboundProxy(gotenberg.OutboundProxyOptions{
+			AllowList:              arguments.allowList,
+			DenyList:               arguments.denyList,
+			DenyPrivateIPs:         arguments.denyPrivateIPs,
+			DenyPublicIPs:          arguments.denyPublicIPs,
+			EnableEnvironmentProxy: arguments.enableEnvironmentProxy,
+			HostMapping:            arguments.hostMapping(),
+		}),
 	}
 	b.isStarted.Store(false)
 
@@ -215,7 +222,7 @@ func (b *chromiumBrowser) Start(ctx context.Context, logger *slog.Logger) (err e
 
 	// The pinning proxy starts first, as Chromium's switches name its address.
 	if b.arguments.usesPinningProxy() {
-		err = b.pinningProxy.Start(logger)
+		err = b.pinningProxy.Start(logger.With(slog.String("logger", "pinning-proxy")))
 		if err != nil {
 			return fmt.Errorf("start pinning proxy: %w", err)
 		}
@@ -227,7 +234,7 @@ func (b *chromiumBrowser) Start(ctx context.Context, logger *slog.Logger) (err e
 				return
 			}
 
-			stopErr := b.pinningProxy.Stop(logger)
+			stopErr := b.stopPinningProxy()
 			if stopErr != nil {
 				logger.ErrorContext(context.Background(), fmt.Sprintf("stop pinning proxy after failed start: %s", stopErr))
 			}
@@ -358,7 +365,7 @@ type chromiumProcess struct {
 func (b *chromiumBrowser) launch(logger *slog.Logger, debug *debugLogger) (*chromiumProcess, error) {
 	proxyServer := b.arguments.proxyServer
 	if b.arguments.usesPinningProxy() {
-		proxyServer = b.pinningProxy.URL()
+		proxyServer = "http://" + b.pinningProxy.Addr()
 	}
 
 	pipe, chromiumEnds, err := newDevToolsPipe()
@@ -665,12 +672,21 @@ func (b *chromiumBrowser) Stop(logger *slog.Logger) error {
 	// in-flight requests Chromium issues during teardown complete. The
 	// Stop call is a no-op when the proxy was not started (operator
 	// configured --chromium-proxy-server or --chromium-host-resolver-rules).
-	err := b.pinningProxy.Stop(logger)
+	err := b.stopPinningProxy()
 	if err != nil {
 		logger.ErrorContext(context.Background(), fmt.Sprintf("stop pinning proxy: %s", err))
 	}
 
 	return nil
+}
+
+// stopPinningProxy stops the pinning proxy, giving its in-flight handlers a
+// few seconds to complete.
+func (b *chromiumBrowser) stopPinningProxy() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	return b.pinningProxy.Stop(ctx)
 }
 
 func (b *chromiumBrowser) Healthy(logger *slog.Logger) bool {
@@ -987,7 +1003,7 @@ func (b *chromiumBrowser) listen(requestCtx, taskCtx context.Context, taskCancel
 		cancel:         taskCancel,
 	}
 	if b.arguments.usesPinningProxy() {
-		webSocketOptions.decideTunnel = b.pinningProxy.decideTunnel
+		webSocketOptions.decideTunnel = b.pinningProxy.DecideTunnel
 	}
 
 	listenForEventWebSocketCreated(taskCtx, logger, webSocketOptions)
