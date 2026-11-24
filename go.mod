@@ -8,13 +8,13 @@ require (
 	github.com/chromedp/chromedp v0.14.2 // pinned: v0.15.x breaks the headless print-mode paint pipeline (rAF / ResizeObserver / IntersectionObserver stop firing, blank charts). See https://github.com/gotenberg/gotenberg/issues/1535.
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/cucumber/godog v0.16.0
-	github.com/dlclark/regexp2/v2 v2.13.1
+	github.com/dlclark/regexp2/v2 v2.13.2
 	github.com/gobwas/ws v1.5.0
-	github.com/gomarkdown/markdown v0.0.0-20261117205700-e8c6d33a8b6c
+	github.com/gomarkdown/markdown v0.0.0-20261124143954-1814b856890d
 	github.com/google/uuid v1.6.0
 	github.com/gotenberg/litho v0.0.19
 	github.com/hashicorp/go-retryablehttp v0.7.8
-	github.com/labstack/echo/v5 v5.4.6
+	github.com/labstack/echo/v5 v5.4.7
 	github.com/labstack/gommon v0.5.0
 	github.com/mholt/archives v0.1.5
 	github.com/microcosm-cc/bluemonday v1.0.27
@@ -67,7 +67,7 @@ require (
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-connections v0.8.2 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
-	github.com/dop251/goja v0.0.0-20261118204651-8dfece3d1e1d // indirect
+	github.com/dop251/goja v0.0.0-20261124141918-d9d211bc2d23 // indirect
 	github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707 // indirect
 	github.com/ebitengine/purego v0.11.3 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
@@ -88,9 +88,10 @@ require (
 	github.com/hashicorp/go-uuid v1.0.4 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
-	github.com/klauspost/compress v1.20.4 // indirect
+	github.com/klauspost/compress v1.20.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.2 // indirect
 	github.com/klauspost/pgzip v1.3.0 // indirect
+	github.com/ledongthuc/pdf v0.0.0-20261020125853-5e46805f718e // indirect
 	github.com/lufia/plan9stats v0.0.0-20261101121723-be84dd9509a0 // indirect
 	github.com/magiconair/properties v1.18.13 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
@@ -101,15 +102,16 @@ require (
 	github.com/moby/go-archive v0.3.3 // indirect
 	github.com/moby/patternmatcher v0.6.1 // indirect
 	github.com/moby/sys/sequential v0.7.0 // indirect
-	github.com/moby/sys/user v0.5.0 // indirect
+	github.com/moby/sys/user v0.5.1 // indirect
 	github.com/moby/sys/userns v0.2.1 // indirect
 	github.com/moby/term v0.5.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nwaples/rardecode/v2 v2.4.6 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
+	github.com/orisano/pixelmatch v0.0.0-20261015095729-8d350b6cff2e // indirect
 	github.com/pandatix/go-abnf v0.5.5 // indirect
-	github.com/pierrec/lz4/v4 v4.1.33 // indirect
+	github.com/pierrec/lz4/v4 v4.1.34 // indirect
 	github.com/power-devops/perfstat v0.0.0-20260916203055-22a1a467d9f0 // indirect
 	github.com/prometheus/client_golang v1.25.0 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
@@ -125,7 +127,7 @@ require (
 	github.com/ulikunitz/xz v0.5.17 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	github.com/zeebo/xxh3 v1.1.1-0.20260908150653-f7225998cebf // indirect
-	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
+	go.opentelemetry.io/auto/sdk v1.2.2 // indirect
 	go.opentelemetry.io/contrib/bridges/prometheus v0.72.0 // indirect
 	go.opentelemetry.io/contrib/propagators/aws v1.47.0 // indirect
 	go.opentelemetry.io/contrib/propagators/b3 v1.47.0 // indirect
@@ -151,8 +153,8 @@ require (
 	golang.org/x/oauth2 v0.38.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20261118221215-c8830f628b3f // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20261118221215-c8830f628b3f // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20261123191846-1e707ab9fbc2 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20261123191846-1e707ab9fbc2 // indirect
 	google.golang.org/grpc v1.85.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
