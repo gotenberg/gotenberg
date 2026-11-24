@@ -163,6 +163,11 @@ type Options struct {
 	// PDF.
 	ExportNotesInMargin bool
 
+	// ShowTrackedChanges exports tracked changes (insertions and deletions)
+	// as marked up. When false, the document is exported as if every change
+	// were accepted.
+	ShowTrackedChanges bool
+
 	// ConvertOooTargetToPdfTarget specifies that the target documents with
 	// .od[tpgs] extension will have that extension changed to .pdf when the
 	// link is exported to PDF. The source document remains untouched.
@@ -335,6 +340,7 @@ func DefaultOptions() Options {
 		ExportNotesPages:                false,
 		ExportOnlyNotesPages:            false,
 		ExportNotesInMargin:             false,
+		ShowTrackedChanges:              false,
 		ConvertOooTargetToPdfTarget:     false,
 		ExportLinksRelativeFsys:         false,
 		ExportHiddenSlides:              false,

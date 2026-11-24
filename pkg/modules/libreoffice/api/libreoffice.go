@@ -98,6 +98,7 @@ type lokRequest struct {
 	ExportNotesPages                bool   `json:"exportNotesPages"`
 	ExportOnlyNotesPages            bool   `json:"exportOnlyNotesPages"`
 	ExportNotesInMargin             bool   `json:"exportNotesInMargin"`
+	ShowTrackedChanges              bool   `json:"showTrackedChanges"`
 	ConvertOooTargetToPdfTarget     bool   `json:"convertOooTargetToPdfTarget"`
 	ExportLinksRelativeFsys         bool   `json:"exportLinksRelativeFsys"`
 	ExportHiddenSlides              bool   `json:"exportHiddenSlides"`
@@ -219,6 +220,7 @@ func newLokRequest(inputPath, outputPath string, options Options) (lokRequest, e
 		ExportNotesPages:                options.ExportNotesPages,
 		ExportOnlyNotesPages:            options.ExportOnlyNotesPages,
 		ExportNotesInMargin:             options.ExportNotesInMargin,
+		ShowTrackedChanges:              options.ShowTrackedChanges,
 		ConvertOooTargetToPdfTarget:     options.ConvertOooTargetToPdfTarget,
 		ExportLinksRelativeFsys:         options.ExportLinksRelativeFsys,
 		ExportHiddenSlides:              options.ExportHiddenSlides,
