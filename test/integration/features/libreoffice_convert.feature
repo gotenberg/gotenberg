@@ -65,6 +65,41 @@ Feature: /forms/libreoffice/convert
       """
     Then the "foo.pdf" PDF should NOT have content matching "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}" at page 1
 
+  Scenario: POST /forms/libreoffice/convert (Tracked Changes Accepted By Default)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/tracked_changes.docx | file   |
+      | Gotenberg-Output-Filename | foo                           | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Inserted text.
+      """
+    Then the "foo.pdf" PDF should NOT have the following content at page 1:
+      """
+      Deleted text.
+      """
+
+  Scenario: POST /forms/libreoffice/convert (Show Tracked Changes)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
+      | files                     | testdata/tracked_changes.docx | file   |
+      | showTrackedChanges        | true                          | field  |
+      | Gotenberg-Output-Filename | foo                           | header |
+    Then the response status code should be 200
+    Then the response header "Content-Type" should be "application/pdf"
+    Then there should be 1 PDF(s) in the response
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Deleted text.
+      """
+    Then the "foo.pdf" PDF should have the following content at page 1:
+      """
+      Inserted text.
+      """
+
   Scenario: POST /forms/libreoffice/convert (Many Documents)
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/libreoffice/convert" endpoint with the following form data and header(s):
@@ -361,6 +396,7 @@ Feature: /forms/libreoffice/convert
       | exportNotesPages                | foo   | field |
       | exportOnlyNotesPages            | foo   | field |
       | exportNotesInMargin             | foo   | field |
+      | showTrackedChanges              | foo   | field |
       | convertOooTargetToPdfTarget     | foo   | field |
       | exportLinksRelativeFsys         | foo   | field |
       | exportHiddenSlides              | foo   | field |
@@ -403,6 +439,7 @@ Feature: /forms/libreoffice/convert
       form field 'exportNotesPages' is invalid (got 'foo', want true or false)
       form field 'exportOnlyNotesPages' is invalid (got 'foo', want true or false)
       form field 'exportNotesInMargin' is invalid (got 'foo', want true or false)
+      form field 'showTrackedChanges' is invalid (got 'foo', want true or false)
       form field 'convertOooTargetToPdfTarget' is invalid (got 'foo', want true or false)
       form field 'exportLinksRelativeFsys' is invalid (got 'foo', want true or false)
       form field 'exportHiddenSlides' is invalid (got 'foo', want true or false)

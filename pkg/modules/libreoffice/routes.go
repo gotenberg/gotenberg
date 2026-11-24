@@ -61,6 +61,7 @@ func convertRoute(libreOffice libreofficeapi.Converter, processor *pdf.Processor
 				Bool("exportNotesPages", &options.ExportNotesPages).
 				Bool("exportOnlyNotesPages", &options.ExportOnlyNotesPages).
 				Bool("exportNotesInMargin", &options.ExportNotesInMargin).
+				Bool("showTrackedChanges", &options.ShowTrackedChanges).
 				Bool("convertOooTargetToPdfTarget", &options.ConvertOooTargetToPdfTarget).
 				Bool("exportLinksRelativeFsys", &options.ExportLinksRelativeFsys).
 				Bool("exportHiddenSlides", &options.ExportHiddenSlides).

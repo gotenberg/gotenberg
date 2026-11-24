@@ -140,6 +140,7 @@ func TestLibreOfficeProcess(t *testing.T) {
 	output := filepath.Join(dir, "out.pdf")
 	options := DefaultOptions()
 	options.PdfFormats = PdfFormats{PdfA: PdfA2b}
+	options.ShowTrackedChanges = true
 
 	err = p.pdf(context.Background(), logger, filepath.Join(dir, "ok.csv"), output, options)
 	if err != nil {
@@ -152,8 +153,8 @@ func TestLibreOfficeProcess(t *testing.T) {
 		t.Fatalf("the fake lok wrote no request: %v", err)
 	}
 
-	if sent.PdfVersion != 2 || !sent.EmbedStandardFonts || !sent.DisableCalcHeader || !sent.UpdateIndexes {
-		t.Errorf("request = %+v, want PDF/A-2b with embedded fonts, the CSV header off and indexes updated", sent)
+	if sent.PdfVersion != 2 || !sent.EmbedStandardFonts || !sent.DisableCalcHeader || !sent.UpdateIndexes || !sent.ShowTrackedChanges {
+		t.Errorf("request = %+v, want PDF/A-2b with embedded fonts, the CSV header off, indexes updated and tracked changes shown", sent)
 	}
 
 	for _, tc := range []struct {
