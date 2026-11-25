@@ -40,6 +40,27 @@ Feature: /forms/pdf/{flatten-form|set-form|form}
     Then the response status code should be 200
     Then the response PDF(s) should be flatten
 
+  # PAYDAY stores an appearance that draws its old value; NAME is shown by two
+  # kid widgets that store none. Each widget shows the new value once
+  # flattened, in one pipe or in two calls.
+  Scenario: POST /forms/pdf/pipe (Set Form, Then Flatten Stored Appearances)
+    Given I have a default Gotenberg container
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/pipe" endpoint with the following form data and header(s):
+      | files                     | testdata/form_stale_appearance.pdf                                                       | file   |
+      | stages                    | [{"op":"set-form","fields":{"PAYDAY":"MONDAY","NAME":"Jane Doe"}},{"op":"flatten-form"}] | field  |
+      | Gotenberg-Output-Filename | foo                                                                                      | header |
+    Then the response status code should be 200
+    Then the response PDF(s) should be flatten
+    Then the "foo.pdf" PDF should have content matching "MONDAY" at page 1
+    Then the "foo.pdf" PDF should NOT have content matching "FRIDAY" at page 1
+    Then the "foo.pdf" PDF should have content matching "Jane Doe[\s\S]*Jane Doe" at page 1
+    When I make a "POST" request to Gotenberg at the "/forms/pdf/set-form" endpoint with the following form data and header(s):
+      | files                     | testdata/form_stale_appearance.pdf    | file   |
+      | fields                    | {"PAYDAY":"MONDAY","NAME":"Jane Doe"} | field  |
+      | Gotenberg-Output-Filename | foo                                   | header |
+    Then the response status code should be 200
+    Then the "foo.pdf" PDF should have the form field "PAYDAY" set to "MONDAY"
+
   Scenario: POST /forms/pdf/set-form
     Given I have a default Gotenberg container
     When I make a "POST" request to Gotenberg at the "/forms/pdf/set-form" endpoint with the following form data and header(s):

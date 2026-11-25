@@ -214,8 +214,13 @@ func runEnd(stages Stages, start int) int {
 // tree: litho opens a truncated or corrupt file lazily, and a route that never
 // reads the pages, such as metadata, or a merge of one file, would answer a
 // document it cannot read as if it were fine.
-func (p *Processor) open(ctx context.Context, path, password string) (*litho.Reader, error) {
+func (p *Processor) open(ctx context.Context, logger *slog.Logger, path, password string) (*litho.Reader, error) {
 	opts := []litho.OpenOption{litho.WithLimits(p.limits)}
+	if logger != nil {
+		// litho warns about what it could not do as asked, such as a form
+		// value no installed font draws; its debug records stay out.
+		opts = append(opts, litho.WithLogger(slog.New(gotenberg.LevelFilter(logger.Handler(), slog.LevelWarn))))
+	}
 	if password != "" {
 		opts = append(opts, litho.WithPassword(password))
 	}
@@ -313,7 +318,7 @@ func (p *Processor) merge(ctx *api.Context, s *mergeStage, docs []document, pass
 	// read all the same: merge must not hand back a file the other routes
 	// refuse.
 	if len(docs) == 1 && s.FileBookmarks == nil {
-		r, err := p.open(ctx, docs[0].path, password)
+		r, err := p.open(ctx, ctx.Log(), docs[0].path, password)
 		if err != nil {
 			return nil, &stageError{op: "merge", filename: docs[0].filename, err: err}
 		}
@@ -331,7 +336,7 @@ func (p *Processor) merge(ctx *api.Context, s *mergeStage, docs []document, pass
 	}()
 
 	for _, d := range docs {
-		r, err := p.open(ctx, d.path, password)
+		r, err := p.open(ctx, ctx.Log(), d.path, password)
 		if err != nil {
 			return nil, &stageError{op: "merge", filename: d.filename, err: err}
 		}
@@ -468,7 +473,7 @@ func (p *Processor) compose(ctx *api.Context, s *composeStage, docs []document, 
 	}()
 
 	for _, d := range docs {
-		r, err := p.open(ctx, d.path, password)
+		r, err := p.open(ctx, ctx.Log(), d.path, password)
 		if err != nil {
 			return nil, &stageError{op: "compose", filename: d.filename, err: err}
 		}
@@ -559,7 +564,7 @@ func (p *Processor) split(ctx *api.Context, s *splitStage, docs []document, pass
 }
 
 func (p *Processor) splitOne(ctx *api.Context, s *splitStage, d document, password string) ([]document, error) {
-	r, err := p.open(ctx, d.path, password)
+	r, err := p.open(ctx, ctx.Log(), d.path, password)
 	if err != nil {
 		return nil, err
 	}
@@ -661,7 +666,7 @@ func (p *Processor) runEach(ctx *api.Context, run Stages, docs []document, passw
 // runOne runs a run of stages on one document through a single litho
 // pipeline. encryptionHandled tells that the stages decrypt or encrypt.
 func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password string, encryptionHandled bool, files map[string]string, outcome *remediationOutcome) (document, error) {
-	r, err := p.open(ctx, d.path, password)
+	r, err := p.open(ctx, ctx.Log(), d.path, password)
 	if err != nil {
 		return document{}, &stageError{op: run[0].op(), filename: d.filename, err: err}
 	}
@@ -682,7 +687,7 @@ func (p *Processor) runOne(ctx *api.Context, run Stages, d document, password st
 		}
 	}
 
-	env := &runEnv{processor: p, pageCount: pageCount, files: files, source: r}
+	env := &runEnv{processor: p, logger: ctx.Log(), pageCount: pageCount, files: files, source: r}
 	defer env.close()
 
 	pipeline := litho.NewPipeline().Open(r)
@@ -973,6 +978,8 @@ func documentPaths(docs []document) []string {
 // pipeline has written.
 type runEnv struct {
 	processor *Processor
+	// logger is the request's, which the documents the run opens log to.
+	logger    *slog.Logger
 	pageCount int
 	files     map[string]string
 	readers   []*litho.Reader
@@ -1051,7 +1058,7 @@ func (env *runEnv) openFile(ctx context.Context, name string) (*litho.Reader, er
 		return nil, fmt.Errorf("file %q was not uploaded", name)
 	}
 
-	r, err := env.processor.open(ctx, path, "")
+	r, err := env.processor.open(ctx, env.logger, path, "")
 	if err != nil {
 		return nil, fmt.Errorf("file %q: %w", name, err)
 	}

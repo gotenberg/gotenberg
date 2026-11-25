@@ -1,0 +1,134 @@
+%PDF-1.3
+%‚„œ”
+1 0 obj
+<<
+/Producer (pypdf)
+>>
+endobj
+2 0 obj
+<<
+/Type /Pages
+/Count 1
+/Kids [ 4 0 R ]
+>>
+endobj
+3 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+/AcroForm 11 0 R
+>>
+endobj
+4 0 obj
+<<
+/Type /Page
+/Resources <<
+>>
+/MediaBox [ 0.0 0.0 612 792 ]
+/Parent 2 0 R
+/Annots [ 7 0 R 9 0 R 10 0 R ]
+>>
+endobj
+5 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+/Encoding /WinAnsiEncoding
+>>
+endobj
+6 0 obj
+<<
+/Type /XObject
+/Subtype /Form
+/BBox [ 0.0 0.0 200 20 ]
+/Resources <<
+/Font <<
+/Helv 5 0 R
+>>
+>>
+/Length 56
+>>
+stream
+/Tx BMC q BT /Helv 12 Tf 0 g 2 6 Td (FRIDAY) Tj ET Q EMC
+endstream
+endobj
+7 0 obj
+<<
+/Type /Annot
+/Subtype /Widget
+/Rect [ 100 700 300 720 ]
+/F 4
+/P 4 0 R
+/DA (\057Helv 12 Tf 0 g)
+/FT /Tx
+/T (PAYDAY)
+/V (FRIDAY)
+/AP <<
+/N 6 0 R
+>>
+>>
+endobj
+8 0 obj
+<<
+/FT /Tx
+/T (NAME)
+/Kids [ 9 0 R 10 0 R ]
+>>
+endobj
+9 0 obj
+<<
+/Type /Annot
+/Subtype /Widget
+/Rect [ 100 650 300 670 ]
+/F 4
+/P 4 0 R
+/DA (\057Helv 12 Tf 0 g)
+/Parent 8 0 R
+>>
+endobj
+10 0 obj
+<<
+/Type /Annot
+/Subtype /Widget
+/Rect [ 100 600 300 620 ]
+/F 4
+/P 4 0 R
+/DA (\057Helv 12 Tf 0 g)
+/Parent 8 0 R
+>>
+endobj
+11 0 obj
+<<
+/Fields [ 7 0 R 8 0 R ]
+/DR <<
+/Font <<
+/Helv 5 0 R
+>>
+>>
+/DA (\057Helv 12 Tf 0 g)
+>>
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000015 00000 n 
+0000000054 00000 n 
+0000000113 00000 n 
+0000000179 00000 n 
+0000000304 00000 n 
+0000000401 00000 n 
+0000000603 00000 n 
+0000000770 00000 n 
+0000000832 00000 n 
+0000000962 00000 n 
+0000001093 00000 n 
+trailer
+<<
+/Size 12
+/Root 3 0 R
+/Info 1 0 R
+>>
+startxref
+1198
+%%EOF

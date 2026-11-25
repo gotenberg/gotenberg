@@ -134,7 +134,7 @@ func readRoute(processor *Processor, name string, newRead func(form *api.FormDat
 			err = processor.forEachInputPathIndexed(ctx, inputPaths, func(i int, inputPath string) error {
 				filename := ctx.OriginalFilename(inputPath)
 
-				r, err := processor.open(ctx, inputPath, password)
+				r, err := processor.open(ctx, ctx.Log(), inputPath, password)
 				if err != nil {
 					return &stageError{op: name, filename: filename, err: err}
 				}

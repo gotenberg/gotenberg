@@ -54,7 +54,7 @@ func (p *Processor) renderOne(ctx *api.Context, s *renderStage, d document, pass
 		span.End()
 	}()
 
-	r, err := p.open(spanCtx, d.path, password)
+	r, err := p.open(spanCtx, ctx.Log(), d.path, password)
 	if err != nil {
 		return nil, err
 	}

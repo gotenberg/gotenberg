@@ -292,3 +292,9 @@ func redactRetryLog(keysAndValues []any) []any {
 var (
 	_ retryablehttp.LeveledLogger = (*LeveledLogger)(nil)
 )
+
+// LevelFilter returns a [slog.Handler] that drops the records of next below
+// level.
+func LevelFilter(next slog.Handler, level slog.Level) slog.Handler {
+	return log.LevelFilter(next, level)
+}

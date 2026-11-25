@@ -65,7 +65,7 @@ func (p *Processor) extractAttachmentsOne(ctx *api.Context, s *extractAttachment
 		span.End()
 	}()
 
-	r, err := p.open(spanCtx, d.path, password)
+	r, err := p.open(spanCtx, ctx.Log(), d.path, password)
 	if err != nil {
 		return nil, err
 	}

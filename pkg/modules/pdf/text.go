@@ -57,7 +57,7 @@ func (p *Processor) extractTextOne(ctx *api.Context, s *extractTextStage, d docu
 		span.End()
 	}()
 
-	r, err := p.open(spanCtx, d.path, password)
+	r, err := p.open(spanCtx, ctx.Log(), d.path, password)
 	if err != nil {
 		return extractedFile{}, err
 	}

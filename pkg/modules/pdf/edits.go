@@ -189,14 +189,17 @@ func (s *setBookmarksStage) edit(_ context.Context, w *litho.Writer, env *runEnv
 	return nil
 }
 
-func (s *setFormStage) edit(_ context.Context, w *litho.Writer, _ *runEnv) error {
+func (s *setFormStage) edit(_ context.Context, w *litho.Writer, env *runEnv) error {
+	// litho draws each new value into its widgets; one outside Windows-1252
+	// takes a font installed in the image.
+	fonts := litho.WithFieldFonts(env.processor.textFonts)
 	for _, name := range sortedKeys(s.Fields) {
 		if selections, ok := s.selections[name]; ok {
-			w.SetFormFieldValues(name, selections)
+			w.SetFormFieldValues(name, selections, fonts)
 			continue
 		}
 
-		w.SetFormField(name, s.texts[name])
+		w.SetFormField(name, s.texts[name], fonts)
 	}
 
 	return nil
