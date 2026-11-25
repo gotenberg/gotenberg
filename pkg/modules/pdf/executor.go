@@ -612,7 +612,11 @@ func (p *Processor) splitOne(ctx *api.Context, s *splitStage, d document, passwo
 func splitGroups(s *splitStage, pageCount int) iter.Seq2[[]int, error] {
 	return func(yield func([]int, error) bool) {
 		if s.Every != nil {
-			every := *s.Every
+			// A part holds the whole document at most, and the bound keeps
+			// start+every from overflowing: every = MaxInt wrapped start
+			// negative, and the loop appended page numbers until memory ran
+			// out (GHSA-5w6x-29mm-wm9w).
+			every := min(*s.Every, pageCount)
 
 			for start := 1; start <= pageCount; start += every {
 				var pages []int

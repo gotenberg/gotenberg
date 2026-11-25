@@ -264,6 +264,20 @@ func TestSplitGroups(t *testing.T) {
 	}
 }
 
+// TestSplitGroupsEveryMaxInt pins that a part size past the page count, up to
+// the largest int, yields the whole document once (GHSA-5w6x-29mm-wm9w).
+func TestSplitGroupsEveryMaxInt(t *testing.T) {
+	for _, every := range []int{5, 6, math.MaxInt - 1, math.MaxInt} {
+		groups, err := collectSplitGroups(&splitStage{Every: new(every)}, 5)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(groups) != 1 || !slices.Equal(groups[0], []int{1, 2, 3, 4, 5}) {
+			t.Fatalf("every %d of 5 = %v, want one part of every page", every, groups)
+		}
+	}
+}
+
 // TestSplitGroupsResolvesLazily pins that a group is resolved only when the
 // loop reaches it: stopping after the first of many open ranges on a large
 // document resolves that one alone.
